@@ -1,0 +1,7 @@
+.DS_Store
+.cache
+env
+tags
+build
+out
+.vs
