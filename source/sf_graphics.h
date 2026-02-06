@@ -17,26 +17,28 @@
 #define SF_GRAPHICS_MAX_WAIT_SEMAPHORE_COUNT 8
 #define SF_GRAPHICS_MAX_SIGNAL_SEMAPHORE_COUNT 8
 #define SF_GRAPHICS_MAX_DESCRIPTOR_COUNT 8
+#define SF_GRAPHICS_MAX_VERTEX_ATTRIBUTE_COUNT 8
+#define SF_GRAPHICS_MAX_VERTEX_BINDING_COUNT 8
 #define SF_NULL_HANDLE 0
 
-#define SF_AS_HANDLE(p) ((sf_handle)(p))
+#define SF_AS_HANDLE(p) ((SfHandle)(p))
 
-typedef intptr_t sf_handle;
+typedef intptr_t SfHandle;
 
-typedef enum sf_graphics_buffer_usage {
+typedef enum SfGraphicsBufferUsage {
    SF_GRAPHICS_BUFFER_USAGE_NONE,
    SF_GRAPHICS_BUFFER_USAGE_VERTEX,
    SF_GRAPHICS_BUFFER_USAGE_INDEX,
-} sf_graphics_buffer_usage;
+} SfGraphicsBufferUsage;
 
-typedef enum sf_graphics_texture_type {
+typedef enum SfGraphicsTextureType {
    SF_GRAPHICS_TEXTURE_TYPE_1D,
    SF_GRAPHICS_TEXTURE_TYPE_2D,
    SF_GRAPHICS_TEXTURE_TYPE_3D,
    SF_GRAPHICS_TEXTURE_TYPE_CUBE
-} sf_graphics_texture_type;
+} SfGraphicsTextureType;
 
-typedef enum sf_graphics_texture_usage {
+typedef enum SfGraphicsTextureUsage {
    SF_GRAPHICS_TEXTURE_USAGE_UNDEFINED = 0X00000000,
    SF_GRAPHICS_TEXTURE_USAGE_TRANSFER_SRC = 0X00000001,
    SF_GRAPHICS_TEXTURE_USAGE_TRANSFER_DST = 0X00000002,
@@ -47,10 +49,10 @@ typedef enum sf_graphics_texture_usage {
    SF_GRAPHICS_TEXTURE_USAGE_RESOLVE_SRC = 0X00000040,
    SF_GRAPHICS_TEXTURE_USAGE_RESOLVE_DST = 0X00000080,
    SF_GRAPHICS_TEXTURE_USAGE_PRESENT = 0X00000100,
-} sf_graphics_texture_usage;
-typedef uint32_t sf_graphics_texture_usage_flags;
+} SfGraphicsTextureUsage;
+typedef uint32_t SfGraphicsTextureUsageFlags;
 
-typedef enum sf_graphics_format {
+typedef enum SfGraphicsFormat {
    SF_GRAPHICS_FORMAT_UNDEFINED = 0,
    SF_GRAPHICS_FORMAT_R8_UNORM,
    SF_GRAPHICS_FORMAT_R16_UNORM,
@@ -81,24 +83,24 @@ typedef enum sf_graphics_format {
    SF_GRAPHICS_FORMAT_D16_UNORM_S8_UINT,
    SF_GRAPHICS_FORMAT_D24_UNORM_S8_UINT,
    SF_GRAPHICS_FORMAT_D32_SFLOAT_S8_UINT
-} sf_graphics_format;
+} SfGraphicsFormat;
 
-typedef enum sf_graphics_descriptor_type {
+typedef enum SfGraphicsDescriptorType {
    SF_GRAPHICS_DESCRIPTOR_TYPE_SAMPLER,
    SF_GRAPHICS_DESCRIPTOR_TYPE_UNIFORM_BUFFER,
    SF_GRAPHICS_DESCRIPTOR_TYPE_TEXTURE,
    SF_GRAPHICS_DESCRIPTOR_TYPE_COUNT
-} sf_graphics_descriptor_type;
+} SfGraphicsDescriptorType;
 
-typedef enum sf_graphics_sample_count {
+typedef enum SfGraphicsSampleCount {
    SF_GRAPHICS_SAMPLE_COUNT_1 = 1,
    SF_GRAPHICS_SAMPLE_COUNT_2 = 2,
    SF_GRAPHICS_SAMPLE_COUNT_4 = 4,
    SF_GRAPHICS_SAMPLE_COUNT_8 = 8,
    SF_GRAPHICS_SAMPLE_COUNT_16 = 16
-} sf_graphics_sample_count;
+} SfGraphicsSampleCount;
 
-typedef enum sf_graphics_shader_stage {
+typedef enum SfGraphicsShaderStage {
    SF_GRAPHICS_SHADER_STAGE_NONE = 0X00000000,
    SF_GRAPHICS_SHADER_STAGE_VERTEX = 0X00000001,
    SF_GRAPHICS_SHADER_STAGE_TESSELLATION_CONTROL = 0X00000002,
@@ -106,386 +108,440 @@ typedef enum sf_graphics_shader_stage {
    SF_GRAPHICS_SHADER_STAGE_GEOMETRY = 0X00000008,
    SF_GRAPHICS_SHADER_STAGE_FRAGMENT = 0X00000010,
    SF_GRAPHICS_SHADER_STAGE_COMPUTE = 0X00000020
-} sf_graphics_shader_stage;
-typedef uint32_t sf_graphics_shader_stage_flags;
+} SfGraphicsShaderStage;
+typedef uint32_t SfGraphicsShaderStageFlags;
 
-typedef enum sf_graphics_primitive {
-   SF_GRAPHICS_PRIMITIVE_POINT_LIST
-} sf_graphics_primitive;
+typedef enum SfGraphicsPrimitiveTopology {
+    SF_GRAPHICS_PRIMITIVE_TOPOLOGY_POINT_LIST,
+    SF_GRAPHICS_PRIMITIVE_TOPOLOGY_LINE_LIST,
+    SF_GRAPHICS_PRIMITIVE_TOPOLOGY_LINE_STRIP,
+    SF_GRAPHICS_PRIMITIVE_TOPOLOGY_TRIANGLE_LIST,
+    SF_GRAPHICS_PRIMITIVE_TOPOLOGY_TRIANGLE_STRIP,
+    SF_GRAPHICS_PRIMITIVE_TOPOLOGY_TRIANGLE_FAN,
+    SF_GRAPHICS_PRIMITIVE_TOPOLOGY_LINE_LIST_WITH_ADJACENCY,
+    SF_GRAPHICS_PRIMITIVE_TOPOLOGY_LINE_STRIP_WITH_ADJACENCY,
+    SF_GRAPHICS_PRIMITIVE_TOPOLOGY_TRIANGLE_LIST_WITH_ADJACENCY,
+    SF_GRAPHICS_PRIMITIVE_TOPOLOGY_TRIANGLE_STRIP_WITH_ADJACENCY,
+    SF_GRAPHICS_PRIMITIVE_TOPOLOGY_PATCH_LIST
+} SfGraphicsPrimitiveTopology;
 
-typedef enum sf_graphics_culling_mode {
-   SF_GRAPHICS_CULLING_MODE_NONE = 0
-} sf_graphics_culling_mode;
+typedef enum SfGraphicsCullMode {
+   SF_GRAPHICS_CULL_MODE_NONE = 0,
+   SF_GRAPHICS_CULL_MODE_FRONT,
+   SF_GRAPHICS_CULL_MODE_BACK,
+   SF_GRAPHICS_CULL_MODE_FRONT_AND_BACK
+} SfGraphicsCullMode;
 
-typedef enum sf_graphics_front {
-   SF_GRAPHICS_FRONT_CLOCKWISE,
-   SF_GRAPHICS_FRONT_COUNTER_CLOCKWISE
-} sf_graphics_front;
+typedef enum SfGraphicsFrontFace {
+   SF_GRAPHICS_FRONT_FACE_CLOCKWISE,
+   SF_GRAPHICS_FRONT_FACE_COUNTER_CLOCKWISE
+} SfGraphicsFrontFace;
 
-typedef enum sf_graphics_pipeline_type {
+typedef enum SfGraphicsPipelineType {
    SF_GRAPHICS_PIPELINE_TYPE_GRAPHICS,
    SF_GRAPHICS_PIPELINE_TYPE_COMPUTE,
-} sf_graphics_pipeline_type;
+} SfGraphicsPipelineType;
 
-typedef enum sf_graphics_index_type {
+typedef enum SfGraphicsIndexType {
    SF_GRAPHICS_INDEX_TYPE_U16,
    SF_GRAPHICS_INDEX_TYPE_U32
-} sf_graphics_index_type;
+} SfGraphicsIndexType;
 
-typedef enum sf_api_os {
-   SF_API_OS_MACOS,
-   SF_API_OS_WINDOWS,
-   SF_API_OS_LINUX
-} sf_api_ois;
+typedef enum SFPlataformType {
+   SF_PLATAFORM_TYPE_MACOS,
+   SF_PLATAFORM_TYPE_WINDOWS,
+   SF_PLATAFORM_TYPE_LINUX
+} SFPlataformType;
 
-typedef struct sf_api {
-   enum sf_api_os os;
+typedef enum SfGraphicsClearValueType {
+   SF_GRAPHICS_CLEAR_VALUE_TYPE_NONE,
+   SF_GRAPHICS_CLEAR_VALUE_TYPE_RGBA,
+   SF_GRAPHICS_CLEAR_VALUE_TYPE_DEPTH,
+} SfGraphicsClearValueType;
+
+typedef struct SFPlataform {
+   SFPlataformType type;
    GLFWwindow *window;
-} sf_api;
+} SFPlataform;
 
-typedef struct sf_graphics_rgba {
+typedef struct SfGraphicsRGBA {
    float r;
    float g;
    float b;
    float a;
-} sf_graphics_rgba;
+} SfGraphicsRGBA;
 
-typedef struct sf_graphics_depth {
+typedef struct SfGraphicsDepthStencil {
    float depth;
    uint32_t stencil;
-} sf_graphics_depth;
+} SfGraphicsDepthStencil;
 
-typedef union sf_graphics_clear_value_data {
-   sf_graphics_rgba rgba;
-   sf_graphics_depth depth;
-} sf_graphics_clear_value_data;
+typedef union SfGraphicsClearValueData {
+   SfGraphicsRGBA rgba;
+   SfGraphicsDepthStencil depth;
+} SfGraphicsClearValueData;
 
-typedef enum sf_graphics_clear_value_type {
-   SF_GRAPHICS_CLEAR_VALUE_TYPE_NONE,
-   SF_GRAPHICS_CLEAR_VALUE_TYPE_RGBA,
-   SF_GRAPHICS_CLEAR_VALUE_TYPE_DEPTH,
-} sf_graphics_clear_value_type;
+typedef struct SfGraphicsClearValue {
+   SfGraphicsClearValueType type;
+   SfGraphicsClearValueData data;
+} SfGraphicsClearValue;
 
-typedef struct sf_graphics_clear_value {
-   sf_graphics_clear_value_type type;
-   sf_graphics_clear_value_data data;
-} sf_graphics_clear_value;
-
-typedef struct sf_graphics_texture_description {
-   sf_graphics_texture_type type;
-   sf_graphics_sample_count sample_count;
-   sf_graphics_format format;
-   sf_graphics_texture_usage usage;
+typedef struct SfGraphicsTextureDescription {
+   SfGraphicsTextureType type;
+   SfGraphicsSampleCount samples;
+   SfGraphicsFormat format;
+   SfGraphicsTextureUsage usage;
    uint32_t width;
    uint32_t height;
    uint32_t depth;
    uint32_t mips;
-   sf_bool mapped;
-   sf_graphics_clear_value clear_value;
-   VkImage vk_not_owned_image;
-} sf_graphics_texture_description;
+   SfBool mapped;
+   SfGraphicsClearValue clearValue;
+   VkImage vulkanNotOwnedImage;
+} SfGraphicsTextureDescription;
 
-typedef struct sf_graphics_texture {
-   struct sf_queue queue;
-   sf_graphics_texture_type type;
-   sf_graphics_sample_count sample_count;
-   sf_graphics_format format;
-   sf_graphics_texture_usage usage;
+typedef struct SfGraphicsTexture {
+   SfQueue queue;
+   SfGraphicsTextureType type;
+   SfGraphicsSampleCount samples;
+   SfGraphicsFormat format;
+   SfGraphicsTextureUsage usage;
    uint32_t width;
    uint32_t height;
    uint32_t depth;
    uint32_t mips;
-   sf_bool mapped;
-   sf_bool owns_image;
-   void *mapped_data;
-   sf_graphics_clear_value clear_value;
-   VkImageLayout vk_layout;
-   VkImageAspectFlags vk_aspect;
-   VkImage vk_image;
-   VkDeviceMemory vk_memory;
-   VkImageView vk_image_view;
-   VkSampler vk_sampler;
-} sf_graphics_texture;
+   SfBool mapped;
+   SfBool ownsImage;
+   void *mappedData;
+   SfGraphicsClearValue clearValue;
+   VkImageLayout vulkanLayout;
+   VkImageAspectFlags vulkanAspectFlags;
+   VkImage vulkanImage;
+   VkDeviceMemory vulkanMemory;
+   VkImageView vulkanImageView;
+   VkSampler vulkanSampler;
+} SfGraphicsTexture;
 
-typedef struct sf_graphics_buffer {
-   struct sf_queue queue;
+typedef struct SfGraphicsBuffer {
+   SfQueue queue;
    uint64_t size;
-   void *mapping;
-   VkBuffer vk_buffer;
-   VkDeviceMemory vk_memory;
-} sf_graphics_buffer;
+   void *mappedData;
+   VkBuffer vulkanBuffer;
+   VkDeviceMemory vulkanMemory;
+} SfGraphicsBuffer;
 
-typedef struct sf_graphics_descriptor {
-   enum sf_graphics_descriptor_type type;
-   sf_graphics_shader_stage_flags stages;
+typedef struct SfGraphicsDescriptor {
+   SfGraphicsDescriptorType type;
+   SfGraphicsShaderStageFlags stageFlags;
    uint32_t binding;
-   uint32_t entry_count;
-   sf_handle entries[SF_GRAPHICS_MAX_DESCRIPTOR_ENTRY_COUNT];
-} sf_graphics_descriptor;
+   uint32_t entryCount;
+   SfHandle entries[SF_GRAPHICS_MAX_DESCRIPTOR_ENTRY_COUNT];
+} SfGraphicsDescriptor;
 
-typedef struct sf_graphics_descriptor_set_description {
-   uint32_t descriptor_count;
-   struct sf_graphics_descriptor descriptors[SF_GRAPHICS_MAX_DESCRIPTOR_COUNT];
-} sf_graphics_descriptor_set_description;
+typedef struct SfGraphicsDescriptorSetDescription {
+   uint32_t descriptorCount;
+   SfGraphicsDescriptor descriptors[SF_GRAPHICS_MAX_DESCRIPTOR_COUNT];
+} SfGraphicsDescriptorSetDescription;
 
-typedef struct sf_graphics_descriptor_set {
-   struct sf_queue queue;
-   uint32_t descriptor_count;
-   sf_graphics_descriptor descriptors[SF_GRAPHICS_MAX_DESCRIPTOR_COUNT];
-   VkDescriptorSetLayout vk_descriptor_set_layout;
-   VkDescriptorPool vk_descriptor_pool;
-   VkDescriptorSet vk_descriptor_set;
-} sf_graphics_descriptor_set;
+typedef struct SfGraphicsDescriptorSet {
+   SfQueue queue;
+   uint32_t descriptorCount;
+   SfGraphicsDescriptor descriptors[SF_GRAPHICS_MAX_DESCRIPTOR_COUNT];
+   VkDescriptorSetLayout vulkanDescriptorSetLayout;
+   VkDescriptorPool vulkanDescriptorPool;
+   VkDescriptorSet vulkanDescriptorSet;
+} SfGraphicsDescriptorSet;
 
-typedef struct sf_graphics_command_buffer {
-   struct sf_queue queue;
-   VkCommandBuffer vk_command_buffer;
-} sf_graphics_command_buffer;
+typedef struct SfGraphicsCommandBuffer {
+   SfQueue queue;
+   VkCommandBuffer vulkanCommandBuffer;
+} SfGraphicsCommandBuffer;
 
-typedef struct sf_graphics_program_description {
-   uint32_t vertex_code_size;
-   void const *vertex_code;
-   uint32_t tesselation_control_code_size;
-   void const *tesselation_control_code;
-   uint32_t tesselation_evaluation_code_size;
-   void const *tesselation_evaluation_code;
-   uint32_t geometry_code_size;
-   void const *geometry_code;
-   uint32_t fragment_code_size;
-   void const *fragment_code;
-   uint32_t compute_code_size;
-   void const *compute_code;
-} sf_graphics_program_description;
+typedef struct SfGraphicsProgramDescription {
+   uint32_t vertexCodeSize;
+   void const *vertexCode;
 
-typedef struct sf_graphics_program {
-   struct sf_queue queue;
-   sf_graphics_shader_stage_flags stages;
-   VkShaderModule vk_vertex_shader;
-   VkShaderModule vk_tesselation_control_shader;
-   VkShaderModule vk_tesselation_evaluation_shader;
-   VkShaderModule vk_geometry_shader;
-   VkShaderModule vk_compute_shader;
-   VkShaderModule vk_fragment_shader;
-} sf_graphics_program;
+   uint32_t tessellationControlCodeSize;
+   void const *tessellationControlCode;
 
-typedef struct sf_graphics_vertex_attribute {
-   sf_graphics_format format;
+   uint32_t tessellationEvaluationCodeSize;
+   void const *tessellationEvaluationCode;
+
+   uint32_t geometryCodeSize;
+   void const *geometryCode;
+
+   uint32_t fragmentCodeSize;
+   void const *fragmentCode;
+
+   uint32_t computeCodeSize;
+   void const *computeCode;
+} SfGraphicsProgramDescription;
+
+typedef struct SfGraphicsProgram {
+   SfQueue queue;
+   SfGraphicsShaderStageFlags stageFlags;
+   VkShaderModule vulkanVertexShader;
+   VkShaderModule vulkanTessellationControlShader;
+   VkShaderModule vulkanTessellationEvaluationShader;
+   VkShaderModule vulkanGeometryShader;
+   VkShaderModule vulkanComputeShader;
+   VkShaderModule vulkanFragmentShader;
+} SfGraphicsProgram;
+
+typedef struct SfGraphicsVertexAttribute {
+   SfGraphicsFormat format;
    uint32_t binding;
    uint32_t location;
    uint32_t offset;
-} sf_graphics_vertex_attribute;
+} SfGraphicsVertexAttribute;
 
-typedef struct sf_graphics_vertex_layout {
+typedef struct SfGraphicsVertexLayout {
    uint32_t count;
-   sf_graphics_vertex_attribute *attributes;
-} sf_graphics_vertex_layout;
+   SfGraphicsVertexAttribute *attributes;
+} SfGraphicsVertexLayout;
 
-typedef struct sf_graphics_pipeline_description {
-   sf_graphics_vertex_layout vertex_layout;
-   sf_graphics_primitive topology;
-   sf_graphics_culling_mode culling;
-   sf_graphics_front face;
-   sf_bool use_depth_stencil;
-   sf_handle descriptor_set;
-   sf_handle program;
-} sf_graphics_pipeline_description;
+typedef struct SfGraphicsPipelineDescription {
+   SfGraphicsPipelineType type;
+   SfGraphicsVertexLayout vertexLayout;
+   SfGraphicsPrimitiveTopology topology;
+   uint32_t patchControlPointCount;
+   SfGraphicsCullMode cullMode;
+   SfGraphicsFrontFace frontFace;
+   SfBool useDepthStencil;
+   SfHandle descriptorSet;
+   SfHandle program;
+   SfHandle renderTarget;
+} SfGraphicsPipelineDescription;
 
-typedef struct sf_graphics_pipeline {
-   sf_queue queue;
-   sf_graphics_pipeline_type type;
-   VkPipelineLayout vk_pipeline_layout;
-   VkPipeline vk_pipeline;
-} sf_graphics_pipeline;
+typedef struct SfGraphicsPipeline {
+   SfQueue queue;
+   SfGraphicsPipelineType type;
+   VkPipelineLayout vulkanPipelineLayout;
+   VkPipeline vulkanPipeline;
+} SfGraphicsPipeline;
 
-typedef struct sf_graphics_render_target_description {
-   sf_graphics_sample_count sample_count;
-   sf_graphics_format color_format;
-   sf_graphics_format depth_stencil_format;
+typedef struct SfGraphicsRenderTargetDescription {
+   SfGraphicsSampleCount sampleCount;
+   SfGraphicsFormat colorFormat;
+   SfGraphicsFormat depthStencilFormat;
    uint32_t width;
    uint32_t height;
-   uint32_t color_attachment_count;
-   sf_graphics_clear_value color_attachment_clear_values[SF_GRAPHICS_MAX_ATTACHMENT_COUNT];
-   sf_graphics_clear_value depth_stencil_attachment_clear_value;
-   VkImage vk_not_owned_color_image;
-} sf_graphics_render_target_description;
+   uint32_t colorAttachmentCount;
+   SfGraphicsClearValue colorAttachmentClearValues[SF_GRAPHICS_MAX_ATTACHMENT_COUNT];
+   SfGraphicsClearValue depthStencilAttachmentClearValue;
+   VkImage vulkanNotOwnedImage;
+} SfGraphicsRenderTargetDescription;
 
-typedef struct sf_graphics_render_target {
-   struct sf_queue queue;
-   sf_graphics_sample_count sample_count;
-   sf_graphics_format color_format;
-   sf_graphics_format depth_stencil_format;
+typedef struct SfGraphicsRenderTarget {
+   SfQueue queue;
+
+   SfGraphicsSampleCount samples;
+   SfGraphicsFormat colorFormat;
+   SfGraphicsFormat depthStencilFormat;
+
    uint32_t width;
    uint32_t height;
-   uint32_t color_attachment_clear_value_count;
-   sf_graphics_clear_value color_attachment_clear_values[SF_GRAPHICS_MAX_ATTACHMENT_COUNT];
-   sf_graphics_clear_value depth_stencil_attachment_clear_value;
-   sf_handle depth_stencil_attachment;
-   sf_handle depth_stencil_multisampling_attachment;
-   uint32_t color_attachment_count;
-   sf_handle color_attachments[SF_GRAPHICS_MAX_ATTACHMENT_COUNT];
-   uint32_t color_multisample_attachment_count;
-   sf_handle color_multisample_attachments[SF_GRAPHICS_MAX_ATTACHMENT_COUNT];
-   VkImage vk_swapchain_image;
-   VkRenderPass vk_render_pass;
-   VkFramebuffer vk_framebuffer;
-} sf_graphics_render_target;
 
-typedef struct sf_graphics_semaphore {
-   sf_queue queue;
-   VkSemaphore vk_semaphore;
-} sf_graphics_semaphore;
+   SfGraphicsClearValue depthStencilAttachmentClearValue;
+   SfHandle depthStencilAttachment;
+   SfHandle depthStencilMultisamplingAttachment;
 
-typedef struct sf_graphics_fence {
-   sf_queue queue;
-   VkFence vk_fence;
-} sf_graphics_fence;
+   uint32_t colorAttachmentCount;
+   SfGraphicsClearValue colorAttachmentClearValues[SF_GRAPHICS_MAX_ATTACHMENT_COUNT];
+   SfHandle colorAttachments[SF_GRAPHICS_MAX_ATTACHMENT_COUNT];
 
-typedef struct sf_graphics_queue {
-   uint32_t vk_queue_family_index;
-   VkQueue vk_queue;
-} sf_graphics_queue;
+   uint32_t colorMultisampleAttachmentCount;
+   SfHandle colorMultisampleAttachments[SF_GRAPHICS_MAX_ATTACHMENT_COUNT];
 
-typedef struct sf_graphics_command_pool {
-   sf_queue queue;
-   VkCommandPool vk_command_pool;
-} sf_graphics_command_pool;
+   VkImage vulkanSwapchainImage;
+   VkRenderPass vulkanRenderPass;
+   VkFramebuffer vulkanFramebuffer;
+} SfGraphicsRenderTarget;
 
-typedef struct sf_graphics_renderer_description {
-   sf_api api;
-   sf_arena *arena;
-   uint32_t swapchain_width;
-   uint32_t swapchain_height;
-   uint32_t swapchain_image_count;
-   sf_graphics_clear_value swapchain_color_clear_value;
-   sf_graphics_clear_value swapchain_depth_stencil_clear_value;
-   sf_graphics_sample_count sample_count;
-   sf_graphics_format color_attachment_format;
-   sf_graphics_format depth_stencil_format;
-   uint32_t buffering_count;
-   sf_bool enable_vsync;
-   char const *application_name;
-   uint32_t vk_instance_layer_count;
-   char const **vk_instance_layers;
-   uint32_t vk_instance_extension_count;
-   char const **vk_instance_extensions;
-   uint32_t vk_device_extension_count;
-   char const **vk_device_extensions;
-   VkAllocationCallbacks *vk_allocation_callbacks;
-   PFN_vkDebugUtilsMessengerCallbackEXT vk_debug_callback;
-} sf_graphics_renderer_description;
+typedef struct SfGraphicsSemaphore {
+   SfQueue queue;
+   VkSemaphore vulkanSemaphore;
+} SfGraphicsSemaphore;
 
-typedef struct sf_graphics_renderer {
-   sf_arena arena;
-   sf_api api;
-   sf_graphics_sample_count sample_count;
-   sf_graphics_format color_attachment_format;
-   sf_graphics_format depth_stencil_format;
-   uint32_t buffering_count;
-   sf_bool enable_vsync;
-   sf_graphics_queue graphics_queue;
-   sf_graphics_queue present_queue;
-   sf_queue texture_queue;
-   sf_queue free_texture_queue;
-   sf_queue buffer_queue;
-   sf_queue free_buffer_queue;
-   sf_queue command_pool_queue;
-   sf_queue free_command_pool_queue;
-   sf_queue command_buffer_queue;
-   sf_queue free_command_buffer_queue;
-   sf_queue semaphore_queue;
-   sf_queue free_semaphore_queue;
-   sf_queue fence_queue;
-   sf_queue free_fence_queue;
-   sf_arena render_target_arena;
-   sf_queue render_target_queue;
-   sf_queue free_render_target_queue;
-   sf_queue program_queue;
-   sf_queue free_program_queue;
-   sf_queue descriptor_set_queue;
-   sf_queue free_descriptor_set_queue;
-   sf_queue error_queue;
-   sf_queue pipeline_queue;
-   sf_queue free_pipeline_queue;
-   uint32_t swapchain_width;
-   uint32_t swapchain_height;
-   uint32_t swapchain_image_count;
-   sf_graphics_clear_value swapchain_color_clear_value;
-   sf_graphics_clear_value swapchain_depth_stencil_clear_value;
-   sf_bool swapchain_skip_end_frame;
-   uint32_t swapchain_current_image_index;
-   uint32_t swapchain_render_target_count;
-   sf_handle swapchain_render_targets[SF_GRAPHICS_MAX_SWAPCHAIN_IMAGE_COUNT];
-   uint32_t image_acquired_semaphore_count;
-   sf_handle image_acquired_semaphores[SF_GRAPHICS_MAX_BUFFERING_COUNT];
-   uint32_t in_flight_fence_count;
-   sf_handle in_flight_fences[SF_GRAPHICS_MAX_BUFFERING_COUNT];
-   uint32_t draw_complete_semaphore_count;
-   sf_handle draw_complete_semaphores[SF_GRAPHICS_MAX_SWAPCHAIN_IMAGE_COUNT];
-   char const *application_name;
-   uint32_t vk_instance_layer_count;
-   char const **vk_instance_layers;
-   uint32_t vk_instance_extension_count;
-   char const **vk_instance_extensions;
-   uint32_t vk_device_extension_count;
-   char const **vk_device_extensions;
-   VkAllocationCallbacks *vk_allocation_callbacks;
-   PFN_vkDebugUtilsMessengerCallbackEXT vk_debug_callback;
-   VkInstance vk_instance;
-   VkDebugUtilsMessengerEXT vk_validation_messenger;
-   VkFormat vk_surface_format;
-   VkFormat vk_depth_stencil_format;
-   VkPresentModeKHR vk_present_mode;
-   VkColorSpaceKHR vk_surface_color_space;
-   VkSurfaceKHR vk_surface;
-   VkSampleCountFlagBits vk_sample_count;
-   VkPhysicalDevice vk_physical_device;
-   VkDevice vk_device;
-   VkSwapchainKHR vk_swapchain;
-   uint32_t vk_swapchain_image_count;
-   VkImage vk_swapchain_images[SF_GRAPHICS_MAX_SWAPCHAIN_IMAGE_COUNT];
-   PFN_vkCreateDebugUtilsMessengerEXT vk_create_debug_utils_messenger_ext;
-   PFN_vkDestroyDebugUtilsMessengerEXT vk_destroy_debug_utils_messenger_ext;
-} sf_graphics_renderer;
+typedef struct SfGraphicsFence {
+   SfQueue queue;
+   VkFence vulkanFence;
+} SfGraphicsFence;
 
-sf_graphics_renderer *sf_graphics_create_renderer(sf_graphics_renderer_description const *desc);
-void sf_graphics_destroy_renderer(sf_graphics_renderer *r);
+typedef struct SfGraphicsQueue {
+   uint32_t vulkanQueueFamilyIndex;
+   VkQueue vulkanQueue;
+} SfGraphicsQueue;
 
-sf_handle sf_graphics_get_graphics_queue(sf_graphics_renderer *r);
-sf_handle sf_graphics_get_present_queue(sf_graphics_renderer *r);
+typedef struct SfGraphicsCommandPool {
+   SfQueue queue;
+   VkCommandPool vulkanCommandPool;
+} SfGraphicsCommandPool;
 
-sf_handle sf_graphics_create_semaphore(sf_graphics_renderer *r);
-void sf_graphics_destroy_semaphore(sf_graphics_renderer *r, sf_handle semaphore);
+typedef struct SfGraphicsRendererDescription {
+   SFPlataform plataform;
+   SfArena *arena;
+   uint32_t swapchainWidth;
+   uint32_t swapchainHeight;
+   uint32_t swapchainImageCount;
+   SfGraphicsClearValue swapchainColorClearValue;
+   SfGraphicsClearValue swapchainDepthStencilClearValue;
+   SfGraphicsSampleCount sampleCount;
+   SfGraphicsFormat colorAttachmentFormat;
+   SfGraphicsFormat depthStencilFormat;
+   uint32_t bufferingCount;
+   SfBool enableVSYNC;
 
-sf_handle sf_graphics_create_fence(sf_graphics_renderer *r);
-void sf_graphics_destroy_fence(sf_graphics_renderer *r, sf_handle fence);
+   char const *applicationName;
 
-sf_handle sf_graphics_create_buffer(sf_graphics_renderer *r, sf_graphics_buffer_usage usage, sf_bool mapped, uint64_t size);
-void sf_graphics_destroy_buffer(sf_graphics_renderer *r, sf_handle buffer);
+   uint32_t vulkanInstanceLayerCount;
+   char const **vulkanInstanceLayers;
 
-sf_handle sf_graphics_create_texture(sf_graphics_renderer *r, sf_graphics_texture_description const *desc);
-void sf_graphics_destroy_texture(sf_graphics_renderer *r, sf_handle texture);
+   uint32_t vulkanInstanceExtensionCount;
+   char const **vulkanInstanceExtensions;
 
-sf_handle sf_graphics_create_render_target(sf_graphics_renderer *r, sf_graphics_render_target_description const *desc);
-void sf_graphics_destroy_render_target(sf_graphics_renderer *r, sf_handle render_target);
+   uint32_t vulkanDeviceExtensionCount;
+   char const **vulkanDeviceExtensions;
 
-sf_handle sf_graphics_create_command_pool(sf_graphics_renderer *r, sf_handle queue, sf_bool transient, sf_bool reset);
-void sf_graphics_destroy_command_pool(sf_graphics_renderer *r, sf_handle command_pool);
+   VkAllocationCallbacks *vulkanAllocationCallbacks;
+   PFN_vkDebugUtilsMessengerCallbackEXT vulkanDebugCallback;
+} SfGraphicsRendererDescription;
 
-sf_handle sf_graphics_create_program(sf_graphics_renderer *r, sf_graphics_program_description const *desc);
-void sf_graphics_destroy_program(sf_graphics_renderer *r, sf_handle program);
+typedef struct SfGraphicsRenderer {
+   SfArena arena;
+   SFPlataform plataform;
 
-sf_handle sf_graphics_create_command_buffer(sf_graphics_renderer *r, sf_handle command_pool, sf_bool secondary);
-void sf_graphics_destroy_command_buffer(sf_graphics_renderer *r, sf_handle command_pool, sf_handle command_buffer);
+   SfGraphicsSampleCount samples;
+   SfGraphicsFormat colorAttachmentFormat;
+   SfGraphicsFormat depthStencilFormat;
 
-sf_handle sf_graphics_create_descriptor_set(sf_graphics_renderer *r, sf_graphics_descriptor_set_description const *desc);
+   uint32_t bufferingCount;
+   SfBool enableVSYNC;
 
-sf_bool sf_graphics_begin_command(sf_graphics_renderer *r, sf_handle command_buffer);
-sf_bool sf_graphics_end_command(sf_graphics_renderer *r, sf_handle command_buffer);
-sf_bool sf_graphics_queue_submit_command(sf_graphics_renderer *r, sf_handle queue, uint32_t command_buffer_count, sf_handle const *command_buffers, uint32_t wait_semaphore_count, sf_handle const *wait_semaphores, uint32_t signal_semaphore_count, sf_handle const *signal_semaphores);
+   SfGraphicsQueue graphicsQueue;
+   SfGraphicsQueue presentQueue;
 
-sf_bool sf_graphics_queue_present(sf_graphics_renderer *r, sf_handle queue, uint32_t wait_semaphore_count, sf_handle *wait_semaphores);
-sf_bool sf_graphics_queue_wait_idle(sf_handle queue);
+   SfQueue textureQueue;
+   SfQueue freeTextureQueue;
 
-sf_handle sf_graphics_create_and_begin_single_use_command_buffer(sf_graphics_renderer *r);
+   SfQueue bufferQueue;
+   SfQueue freeBufferQueue;
+
+   SfQueue commandPoolQueue;
+   SfQueue freeCommandPoolQueue;
+
+   SfQueue commandBufferQueue;
+   SfQueue freeCommandBufferQueue;
+
+   SfQueue semaphoreQueue;
+   SfQueue freeSemaphoreQueue;
+
+   SfQueue fenceQueue;
+   SfQueue freeFenceQueue;
+
+   SfArena renderTargetArena;
+   SfQueue renderTargetQueue;
+   SfQueue freeRenderTargetQueue;
+
+   SfQueue programQueue;
+   SfQueue freeProgramQueue;
+
+   SfQueue descriptorSetQueue;
+   SfQueue freeDescriptorSetQueue;
+
+   SfQueue errorQueue;
+
+   SfQueue pipelineQueue;
+   SfQueue freePipelineQueue;
+
+   uint32_t swapchainWidth;
+   uint32_t swapchainHeight;
+   uint32_t swapchainImageCount;
+   SfGraphicsClearValue swapchainColorClearValue;
+   SfGraphicsClearValue swapchainDepthStencilClearValue;
+   SfBool swapchainSkipEndFrame;
+   uint32_t swapchainCurrentImageIndex;
+
+   uint32_t swapchainRenderTargetCount;
+   SfHandle swapchainRenderTargets[SF_GRAPHICS_MAX_SWAPCHAIN_IMAGE_COUNT];
+
+   uint32_t imageAcquiredSemaphoreCount;
+   SfHandle imageAcquiredSemaphores[SF_GRAPHICS_MAX_BUFFERING_COUNT];
+
+   uint32_t inFlightFenceCount;
+   SfHandle inFlightFences[SF_GRAPHICS_MAX_BUFFERING_COUNT];
+
+   uint32_t drawCompleteSemaphoreCount;
+   SfHandle drawCompleteSemaphores[SF_GRAPHICS_MAX_SWAPCHAIN_IMAGE_COUNT];
+
+   char const *applicationName;
+
+   uint32_t vulkanInstanceLayerCount;
+   char const** vulkanInstanceLayers;
+
+   uint32_t vulkanInstanceExtensionCount;
+   char const** vulkanInstanceExtensions;
+
+   uint32_t vulkanDeviceExtensionCount;
+   char const** vulkanDeviceExtensions;
+
+   VkAllocationCallbacks* vulkanAllocationCallbacks;
+   PFN_vkDebugUtilsMessengerCallbackEXT vulkanDebugCallback;
+
+   VkInstance vulkanInstance;
+   VkDebugUtilsMessengerEXT vulkanValidationMessenger;
+   VkFormat vulkanSurfaceFormat;
+   VkFormat vulkanDepthStencilFormat;
+   VkPresentModeKHR vulkanPresentMode;
+   VkColorSpaceKHR vulkanSurfaceColorSpace;
+   VkSurfaceKHR vulkanSurface;
+   VkSampleCountFlagBits vulkanSamples;
+   VkPhysicalDevice vulkanPhysicalDevice;
+   VkDevice vulkanDevice;
+   VkSwapchainKHR vulkanSwapchain;
+   uint32_t vulkanSwapchainImageCount;
+   VkImage vulkanSwapchainImages[SF_GRAPHICS_MAX_SWAPCHAIN_IMAGE_COUNT];
+   PFN_vkCreateDebugUtilsMessengerEXT vulkanCreateDebugUtilsMessengerEXT;
+   PFN_vkDestroyDebugUtilsMessengerEXT vulkanDestroyDebugUtilsMessengerEXT;
+} SfGraphicsRenderer;
+
+SfGraphicsRenderer *sfCreateGraphicsRenderer(SfGraphicsRendererDescription const *description);
+void sfDestroyGraphicsRenderer(SfGraphicsRenderer *renderer);
+
+SfHandle sfGetGraphicsQueueHandle(SfGraphicsRenderer *renderer);
+SfHandle sfGetPresentQueueHandle(SfGraphicsRenderer *renderer);
+
+SfHandle sfCreateGraphicsSemaphore(SfGraphicsRenderer *renderer);
+void sfDestroyGraphicsSemaphore(SfGraphicsRenderer *renderer, SfHandle semaphore);
+
+SfHandle sfCreateGraphicsFence(SfGraphicsRenderer *renderer);
+void sfDestroyGraphicsFence(SfGraphicsRenderer *renderer, SfHandle fence);
+
+SfHandle sfCreateGraphicsBuffer(SfGraphicsRenderer *renderer, SfGraphicsBufferUsage usage, SfBool mapped, uint64_t size);
+void sfDestroyGraphicsBuffer(SfGraphicsRenderer *renderer, SfHandle buffer);
+
+SfHandle sfCreateGraphicsTexture(SfGraphicsRenderer *renderer, SfGraphicsTextureDescription const *description);
+void sfDestroyGraphicsTexture(SfGraphicsRenderer* renderer, SfHandle texture);
+
+SfHandle sfCreateGraphicsRenderTarget(SfGraphicsRenderer *renderer, SfGraphicsRenderTargetDescription const *description);
+void sfDestroyGraphicsRenderTarget(SfGraphicsRenderer* renderer, SfHandle renderTarget);
+
+SfHandle sfCreateGraphicsCommandPool(SfGraphicsRenderer* renderer, SfHandle queue, SfBool transient, SfBool reset);
+void sfDestroyGraphicsCommandPool(SfGraphicsRenderer* renderer, SfHandle commandPool);
+
+SfHandle sfCreateGraphicsProgram(SfGraphicsRenderer* renderer, SfGraphicsProgramDescription const *description);
+void sfDestroyGraphicsProgram(SfGraphicsRenderer* renderer, SfHandle program);
+
+SfHandle sfCreateGraphicsCommandBuffer(SfGraphicsRenderer* renderer, SfHandle commandPool, SfBool secondary);
+void sfDestroyGraphicsCommandBuffer(SfGraphicsRenderer* renderer, SfHandle commandPool, SfHandle commandBuffer);
+
+SfHandle sfCreateGraphicsDescriptorSet(SfGraphicsRenderer* renderer, SfGraphicsDescriptorSetDescription const *description);
+
+SfBool sfBeginGraphicsCommand(SfGraphicsRenderer* renderer, SfHandle commandBuffer);
+SfBool sfEndGraphicsCommand(SfGraphicsRenderer* renderer, SfHandle commandBuffer);
+SfBool sfGraphicsQueueSubmitGraphicsCommand(SfGraphicsRenderer* renderer, SfHandle queue, uint32_t commandBufferCount, SfHandle const *commandBuffers, uint32_t waitSemaphoreCount, SfHandle const *waitSemaphore, uint32_t signalSemaphoreCount, SfHandle const *signalSemaphore);
+
+SfBool sfGraphicsQueuePresent(SfGraphicsRenderer* renderer, SfHandle queue, uint32_t waitSemaphoreCount, SfHandle const *waitSemaphore);
+SfBool sfGraphicsQueueWaitIdle(SfHandle queue);
 
 #endif

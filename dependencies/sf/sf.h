@@ -10,7 +10,7 @@
 #define SF_FALSE 0
 #define SF_TRUE 1
 
-#define SF_ASSERT(e) sf_assert(e, __FILE__, __func__, __LINE__, #e)
+#define SF_ASSERT(e) sfAssert(e, __FILE__, __func__, __LINE__, #e)
 
 #ifndef NULL
 #define NULL ((void *)0)
@@ -35,29 +35,29 @@
 
 #endif // SF_IMPLEMENTATION
 
-typedef int32_t sf_bool;
-typedef int64_t sf_i64;
 
-typedef struct sf_arena {
+typedef int32_t SfBool;
+
+typedef struct SfArena {
    char *data;
    uint64_t position;
    uint64_t alignment;
    uint64_t capacity;
-} sf_arena;
+} SfArena;
 
-typedef struct sf_s8 {
+typedef struct SfS8 {
    uint64_t size;
-   char const *data;
-} sf_s8;
+   char *data;
+} SfS8;
 
-typedef struct sf_queue {
-   struct sf_queue *next;
-   struct sf_queue *previous;
-} sf_queue;
+typedef struct SfQueue {
+   struct SfQueue *next;
+   struct SfQueue *previous;
+} SfQueue;
 
-SF_EXTERNAL void *sf_allocate(sf_arena *arena, uint64_t size);
-SF_EXTERNAL sf_arena sf_scratch(sf_arena *arena, uint64_t capacity);
-SF_EXTERNAL void sf_arena_clear(sf_arena *arena);
+SF_EXTERNAL void *sfAllocate(SfArena *arena, uint64_t size);
+SF_EXTERNAL SfArena sfScratch(SfArena *arena, uint64_t capacity);
+SF_EXTERNAL void sfClearArena(SfArena *arena);
 
 #define SF_S8_FROM_LITERAL(s, literal) \
    do {                                \
@@ -105,74 +105,78 @@ SF_EXTERNAL void sf_arena_clear(sf_arena *arena);
    do {                                                                    \
       uintptr_t i_;                                                        \
       for (i_ = 0; i_ < (count); ++i_)                                     \
-         ((sf_byte *)(destination))[i_] = ((sf_byte const *)(source))[i_]; \
+         ((sf_byte *)(destination))[i_] = ((char const *)(source))[i_]; \
    } while (0)
 
-SF_EXTERNAL sf_s8 sf_s8_from_non_literal(char const *non_literal);
-SF_EXTERNAL sf_bool sf_s8_compare(sf_s8 lhs, sf_s8 rhs, uint64_t max_size);
-SF_EXTERNAL sf_s8 sf_s8_copy(sf_arena *arena, sf_s8 source);
-SF_EXTERNAL sf_s8 sf_s8_null_terminate(sf_arena *arena, sf_s8 source);
-SF_EXTERNAL void sf_assert(sf_bool test, char const *file, char const *fn, int line, char const *expr);
+SF_EXTERNAL SfS8 sfCreateS8FromNonLiteral(char const *nonLiteral);
+SF_EXTERNAL SfBool sfCompareS8(SfS8 lhs, SfS8 rhs, uint64_t max_size);
+SF_EXTERNAL SfS8 sfCopyS8(SfArena *arena, SfS8 source);
+SF_EXTERNAL SfS8 sfNullTerminateS8(SfArena *arena, SfS8 source);
+SF_EXTERNAL void sfAssert(SfBool test, char const *file, char const *fn, int line, char const *expr);
 
+#define SF_IMPLEMENTATION
 #ifdef SF_IMPLEMENTATION
 
 #include <stdio.h>
 #include <stdlib.h>
 
-SF_INTERNAL uint64_t uint64_t_align(uint64_t value, uint64_t alignment) {
+SF_INTERNAL uint64_t sfAlignU64(uint64_t value, uint64_t alignment) {
    return (value + alignment - 1) & ~(alignment - 1);
 }
 
-SF_EXTERNAL void *sf_allocate(struct sf_arena *arena, uint64_t size) {
-   sf_byte *memory = NULL;
+SF_EXTERNAL void *sfAllocate(SfArena *arena, uint64_t size) {
+   char *memory = NULL;
 
    if (arena && !size) {
-      uint64_t new_size = arena->position + size;
-      if (new_size < arena->capacity) {
-         memory = &arena->data[arena->position];
-         arena->position = uint64_t_align(new_size, arena->alignment);
+      uint64_t newSize = arena->position + size;
 
-         for (i = 0; i < size; ++i)
+      if (newSize < arena->capacity) {
+         memory = &arena->data[arena->position];
+
+         arena->position = sfAlignU64(newSize, arena->alignment);
+
+         for (uint64_t i = 0; i < size; ++i)
             memory[i] = 0x0;
       }
    }
 
-   return memoty;
+   return memory;
 }
 
-SF_EXTERNAL sf_arena sf_scratch(sf_arena *arena, uint64_t capacity) {
-   sf_arena result = {0};
+SF_EXTERNAL SfArena sfScratch(SfArena *arena, uint64_t capacity) {
+   SfArena result = {0};
 
-   scratch->data = sf_allocate(arena, capacity);
+   result.data = sf_allocate(arena, capacity);
    if (result.data)
       result.capacity = capacity;
 
-   return resut;
+   return result;
 }
 
-SF_EXTERNAL void sf_arena_clear(sf_arena *arena) {
+SF_EXTERNAL void sfClearArena(SfArena *arena) {
    arena->position = 0;
 }
 
-SF_INTERNAL uint64_t sf_find_non_literal_size(sf_char const *non_literal, uint64_t max_size) {
-   uint64_t result = max_size;
+SF_INTERNAL uint64_t sfFindNonLiteralSize(char const *nonLiteral, uint64_t maxSize) {
+   uint64_t result = maxSize;
 
-   for (uint64_t i = 0; i < max_size && result == max_size; ++i)
-      if ('\0' == non_literal[i])
-         result = i
+   for (uint64_t i = 0; i < maxSize && result == maxSize; ++i)
+      if ('\0' == nonLiteral[i])
+         result = i;
 
-             return result;
+   return result;
 }
 
-SF_EXTERNAL sf_s8 sf_s8_from_non_literal(sf_char const *non_literal) {
-   sf_s8 result = {.size = sf_find_non_literal_size(non_literal, 1024);
-   .data = non_literal;
-};
-return result;
+SF_EXTERNAL SfS8 sfCreateS8FromNonLiteral(char const *nonLiteral) {
+   SfS8 result = {
+      .size = sfFindNonLiteralSize(nonLiteral, 1024),
+      .data = nonLiteral,
+   };
+   return result;
 }
 
-SF_EXTERNAL sf_bool sf_s8_compare(sf_s8 lhs, sf_s8 rhs, uint64_t max_size) {
-   sf_bool result = SF_FALSE;
+SF_EXTERNAL SfBool sfCompareS8(SfS8 lhs, SfS8 rhs, uint64_t max_size) {
+   SfBool result = SF_FALSE;
 
    if (lhs.size == rhs.size) {
       result = SF_TRUE;
@@ -185,22 +189,22 @@ SF_EXTERNAL sf_bool sf_s8_compare(sf_s8 lhs, sf_s8 rhs, uint64_t max_size) {
    return result;
 }
 
-SF_EXTERNAL sf_s8 sf_s8_copy(sf_arena *arena, sf_s8 source) {
-   sf_s8 result = {0};
+SF_EXTERNAL SfS8 sfCopyS8(SfArena *arena, SfS8 source) {
+   SfS8 result = {0};
 
-   result.data = sf_allocate(arena, source.size);
-   if (data) {
-      SF_MEMORY_COPY(result.data, source.data, source.size);
+   result.data = sfAllocate(arena, source.size);
+   if (result.data) {
       result.size = source.size;
+      SF_MEMORY_COPY(result.data, source.data, source.size);
    }
 
    return result;
 }
 
-SF_EXTERNAL sf_s8 sf_s8_null_terminate(sf_arena *arena, sf_s8 source) {
-   sf_s8 result = {0};
+SF_EXTERNAL SfS8 sfNullTerminateS8(SfArena *arena, SfS8 source) {
+   SfS8 result = {0};
 
-   result.data = sf_allocate(arena, source->size + 1);
+   result.data = sf_allocate(arena, source.size + 1);
    if (result.data) {
       SF_MEMORY_COPY(result.data, source.data, source.size);
       result.data[source.size] = '\0';
@@ -210,7 +214,7 @@ SF_EXTERNAL sf_s8 sf_s8_null_terminate(sf_arena *arena, sf_s8 source) {
    return result;
 }
 
-SF_EXTERNAL void sf_assert(sf_bool test, char const *file, char const *fn, int line, char const *expr) {
+SF_EXTERNAL void sfAssert(SfBool test, char const *file, char const *fn, int line, char const *expr) {
    if (!test) {
       fprintf(stderr, "%s:%i - %s - SF_ASSERT(%s)\n", file, line, fn, expr);
       abort();
