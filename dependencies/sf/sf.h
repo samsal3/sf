@@ -7,21 +7,22 @@
 #define SF_SIZE(a) (sizeof(a) / sizeof(0 [a]))
 #define SF_MIN(a, b) ((a) < (b) ? (a) : (b))
 #define SF_MAX(a, b) ((a) > (b) ? (a) : (b))
+#define SF_CLAMP(v, l, h) SF_MAX(SF_MIN(v, h), l);
 #define SF_FALSE 0
 #define SF_TRUE 1
 
-#define SF_ASSERT(e) sfAssert(e, __FILE__, __func__, __LINE__, #e)
+#define SF_ASSERT(e) sf_assert(e, __FILE__, __func__, __LINE__, #e)
 
 #ifndef NULL
 #define NULL ((void *)0)
 #endif
 
-#define SF_ARRAY_INIT(a, value)           \
-   do {                                   \
-      size_t i_;                          \
-      for (i_ = 0; i_ < SF_SIZE(a); ++i_) \
-         (a)[i_] = value;                 \
-   } while (0)
+#define SF_ARRAY_INIT(a, value)                                                                             \
+	do {                                                                                                \
+		size_t i_;                                                                                  \
+		for (i_ = 0; i_ < SF_SIZE(a); ++i_)                                                         \
+			(a)[i_] = value;                                                                    \
+	} while (0)
 
 #ifdef SF_IMPLEMENTATION
 
@@ -35,84 +36,96 @@
 
 #endif // SF_IMPLEMENTATION
 
+typedef int32_t sf_bool;
 
-typedef int32_t SfBool;
+struct sf_arena {
+	char	*data;
+	uint64_t position;
+	uint64_t alignment;
+	uint64_t capacity;
+};
 
-typedef struct SfArena {
-   char *data;
-   uint64_t position;
-   uint64_t alignment;
-   uint64_t capacity;
-} SfArena;
+struct sf_string {
+	uint64_t    size;
+	char const *data;
+};
 
-typedef struct SfS8 {
-   uint64_t size;
-   char *data;
-} SfS8;
+struct sf_queue {
+	struct sf_queue *next;
+	struct sf_queue *previous;
+} sf_queue;
 
-typedef struct SfQueue {
-   struct SfQueue *next;
-   struct SfQueue *previous;
-} SfQueue;
+SF_EXTERNAL void *sf_allocate(struct sf_arena *arena, uint64_t size);
+SF_EXTERNAL void *sf_allocate_struct(struct sf_arena *arena, uint64_t n, uint64_t struct_size);
+SF_EXTERNAL void sf_scratch(struct sf_arena *arena, uint64_t capacity, struct sf_arena *scratch);
+SF_EXTERNAL void sf_clear_arena(struct sf_arena *arena);
 
-SF_EXTERNAL void *sfAllocate(SfArena *arena, uint64_t size);
-SF_EXTERNAL SfArena sfScratch(SfArena *arena, uint64_t capacity);
-SF_EXTERNAL void sfClearArena(SfArena *arena);
-
-#define SF_S8_FROM_LITERAL(s, literal) \
-   do {                                \
-      (s)->data = &(literal)[0];       \
-      (s)->size = SF_SIZE(literal);    \
-   } while (0)
+#define SF_S8_FROM_LITERAL(s, literal)                                                                      \
+	do {                                                                                                \
+		(s)->data = &(literal)[0];                                                                  \
+		(s)->size = SF_SIZE(literal);                                                               \
+	} while (0)
 
 #define SF_QUEUE_IS_EMPTY(queue) ((queue) == (queue)->next)
+
 #define SF_QUEUE_NEXT(queue) ((queue)->next)
-#define SF_QUEUE_NEXT_NO_SOURCE_NODE(source, queue) ((queue)->next != (source) ? (queue)->next : (queue)->next->next)
+
+#define SF_QUEUE_NEXT_NO_SOURCE_NODE(source, queue)                                                         \
+	((queue)->next != (source) ? (queue)->next : (queue)->next->next)
+
 #define SF_QUEUE_HEAD(queue) ((queue)->next)
+
 #define SF_QUEUE_PREVIOUS(queue) ((queue)->previous)
+
 #define SF_QUEUE_FOR_EACH(it, head) for ((it) = (head)->next; (it) != (head); (it) = (it)->next)
+
 #define SF_QUEUE_DATA(queue, type, node_name) (type *)((intptr_t)(queue) - SF_OFFSET_OF(type, node_name))
 
-#define SF_QUEUE_INIT(queue)       \
-   do {                            \
-      (queue)->previous = (queue); \
-      (queue)->next = (queue);     \
-   } while (0)
+#define SF_QUEUE_INIT(queue)                                                                                \
+	do {                                                                                                \
+		(queue)->previous = (queue);                                                                \
+		(queue)->next	  = (queue);                                                                \
+	} while (0)
 
-#define SF_QUEUE_INSERT_HEAD(head, queue) \
-   do {                                   \
-      (queue)->next = (head)->next;       \
-      (queue)->previous = (head);         \
-      (queue)->next->previous = (queue);  \
-      (head)->next = (queue);             \
-   } while (0)
+#define SF_QUEUE_INSERT_HEAD(head, queue)                                                                   \
+	do {                                                                                                \
+		(queue)->next		= (head)->next;                                                     \
+		(queue)->previous	= (head);                                                           \
+		(queue)->next->previous = (queue);                                                          \
+		(head)->next		= (queue);                                                          \
+	} while (0)
 
-#define SF_QUEUE_REMOVE(queue)                     \
-   do {                                            \
-      (queue)->next->previous = (queue)->previous; \
-      (queue)->previous->next = (queue)->next;     \
-   } while (0)
+#define SF_QUEUE_REMOVE(queue)                                                                              \
+	do {                                                                                                \
+		(queue)->next->previous = (queue)->previous;                                                \
+		(queue)->previous->next = (queue)->next;                                                    \
+	} while (0)
 
-#define SF_QUEUE_ADD(head, node)                 \
-   do {                                          \
-      (head)->previous->next = (node)->next;     \
-      (head)->next->previous = (node)->previous; \
-      (head)->previous = (node)->previous;       \
-      (head)->previous->next = (node);           \
-   } while (0)
+#define SF_QUEUE_ADD(head, node)                                                                            \
+	do {                                                                                                \
+		(head)->previous->next = (node)->next;                                                      \
+		(head)->next->previous = (node)->previous;                                                  \
+		(head)->previous       = (node)->previous;                                                  \
+		(head)->previous->next = (node);                                                            \
+	} while (0)
 
-#define SF_MEMORY_COPY(destination, source, count)                         \
-   do {                                                                    \
-      uintptr_t i_;                                                        \
-      for (i_ = 0; i_ < (count); ++i_)                                     \
-         ((sf_byte *)(destination))[i_] = ((char const *)(source))[i_]; \
-   } while (0)
+#define SF_MEMORY_COPY(destination, source, count)                                                          \
+	do {                                                                                                \
+		uintptr_t i_;                                                                               \
+		for (i_ = 0; i_ < (count); ++i_)                                                            \
+			((char *)(destination))[i_] = ((char const *)(source))[i_];                         \
+	} while (0)
 
-SF_EXTERNAL SfS8 sfCreateS8FromNonLiteral(char const *nonLiteral);
-SF_EXTERNAL SfBool sfCompareS8(SfS8 lhs, SfS8 rhs, uint64_t max_size);
-SF_EXTERNAL SfS8 sfCopyS8(SfArena *arena, SfS8 source);
-SF_EXTERNAL SfS8 sfNullTerminateS8(SfArena *arena, SfS8 source);
-SF_EXTERNAL void sfAssert(SfBool test, char const *file, char const *fn, int line, char const *expr);
+SF_EXTERNAL void sf_string_create_from_non_literal(char const *non_literal, struct sf_string *result);
+
+SF_EXTERNAL sf_bool sf_string_compare(struct sf_string *lhs, struct sf_string *rhs, uint64_t max_size);
+
+SF_EXTERNAL void sf_string_copy(struct sf_arena *arena, struct sf_string *source, struct sf_string *result);
+
+SF_EXTERNAL void
+sf_string_null_terminate(struct sf_arena *arena, struct sf_string *source, struct sf_string *result);
+
+SF_EXTERNAL void sf_assert(sf_bool test, char const *file, char const *fn, int line, char const *expr);
 
 #define SF_IMPLEMENTATION
 #ifdef SF_IMPLEMENTATION
@@ -120,105 +133,100 @@ SF_EXTERNAL void sfAssert(SfBool test, char const *file, char const *fn, int lin
 #include <stdio.h>
 #include <stdlib.h>
 
-SF_INTERNAL uint64_t sfAlignU64(uint64_t value, uint64_t alignment) {
-   return (value + alignment - 1) & ~(alignment - 1);
+SF_INTERNAL uint64_t u64align(uint64_t value, uint64_t alignment) {
+	return (value + alignment - 1) & ~(alignment - 1);
 }
 
-SF_EXTERNAL void *sfAllocate(SfArena *arena, uint64_t size) {
-   char *memory = NULL;
+SF_EXTERNAL void *sf_allocate(struct sf_arena *arena, uint64_t size) {
+	char	*memory = NULL;
+	uint64_t i, new_size = 0;
 
-   if (arena && !size) {
-      uint64_t newSize = arena->position + size;
+	if (!arena || !size)
+		return NULL;
 
-      if (newSize < arena->capacity) {
-         memory = &arena->data[arena->position];
+	new_size	= arena->position + size;
+	memory		= &arena->data[arena->position];
+	arena->position = u64align(new_size, arena->alignment);
 
-         arena->position = sfAlignU64(newSize, arena->alignment);
+	for (i = 0; i < size; ++i)
+		memory[i] = 0x0;
 
-         for (uint64_t i = 0; i < size; ++i)
-            memory[i] = 0x0;
-      }
-   }
-
-   return memory;
+	return memory;
 }
 
-SF_EXTERNAL SfArena sfScratch(SfArena *arena, uint64_t capacity) {
-   SfArena result = {0};
-
-   result.data = sf_allocate(arena, capacity);
-   if (result.data)
-      result.capacity = capacity;
-
-   return result;
+SF_EXTERNAL void *sf_allocate_struct(struct sf_arena *arena, uint64_t n, uint64_t struct_size) {
+	return sf_allocate(arena, n * struct_size);
 }
 
-SF_EXTERNAL void sfClearArena(SfArena *arena) {
-   arena->position = 0;
+SF_EXTERNAL void sf_scratch(struct sf_arena *arena, uint64_t capacity, struct sf_arena *scratch) {
+	scratch->data = sf_allocate(arena, capacity);
+	if (scratch->data)
+		scratch->capacity = capacity;
+	else
+		scratch->capacity = 0;
 }
 
-SF_INTERNAL uint64_t sfFindNonLiteralSize(char const *nonLiteral, uint64_t maxSize) {
-   uint64_t result = maxSize;
+SF_EXTERNAL void sf_clear_arena(struct sf_arena *arena) { arena->position = 0; }
 
-   for (uint64_t i = 0; i < maxSize && result == maxSize; ++i)
-      if ('\0' == nonLiteral[i])
-         result = i;
+SF_INTERNAL uint64_t sf_string_find_non_literal_size(char const *non_literal, uint64_t max_size) {
+	uint64_t i;
 
-   return result;
+	for (i = 0; i < max_size; ++i)
+		if ('\0' == non_literal[i])
+			return i;
+
+	return max_size;
 }
 
-SF_EXTERNAL SfS8 sfCreateS8FromNonLiteral(char const *nonLiteral) {
-   SfS8 result = {
-      .size = sfFindNonLiteralSize(nonLiteral, 1024),
-      .data = nonLiteral,
-   };
-   return result;
+SF_EXTERNAL void sf_string_create_from_non_literal(char const *non_literal, struct sf_string *result) {
+	result->data = non_literal;
+	result->size = sf_string_find_non_literal_size(non_literal, 1024);
 }
 
-SF_EXTERNAL SfBool sfCompareS8(SfS8 lhs, SfS8 rhs, uint64_t max_size) {
-   SfBool result = SF_FALSE;
+SF_EXTERNAL sf_bool sf_string_compare(struct sf_string *lhs, struct sf_string *rhs, uint64_t max_size) {
+	uint64_t i;
 
-   if (lhs.size == rhs.size) {
-      result = SF_TRUE;
+	if (lhs->size != rhs->size)
+		return SF_FALSE;
 
-      for (uint64_t i = 0; i < SF_MIN(lhs.size, max_size) && result; ++i)
-         if (lhs.data[i] != rhs.data[i])
-            result = SF_FALSE;
-   }
+	for (i = 0; i < SF_MIN(lhs->size, max_size); ++i)
+		if (lhs->data[i] != rhs->data[i])
+			return SF_FALSE;
 
-   return result;
+	return SF_TRUE;
 }
 
-SF_EXTERNAL SfS8 sfCopyS8(SfArena *arena, SfS8 source) {
-   SfS8 result = {0};
-
-   result.data = sfAllocate(arena, source.size);
-   if (result.data) {
-      result.size = source.size;
-      SF_MEMORY_COPY(result.data, source.data, source.size);
-   }
-
-   return result;
+SF_EXTERNAL void sf_string_copy(struct sf_arena *arena, struct sf_string *source, struct sf_string *result) {
+	char *data = sf_allocate(arena, source->size);
+	if (data) {
+		SF_MEMORY_COPY(data, source->data, source->size);
+		result->data = data;
+		result->size = source->size;
+	} else {
+		result->data = NULL;
+		result->size = source->size;
+	}
 }
 
-SF_EXTERNAL SfS8 sfNullTerminateS8(SfArena *arena, SfS8 source) {
-   SfS8 result = {0};
-
-   result.data = sf_allocate(arena, source.size + 1);
-   if (result.data) {
-      SF_MEMORY_COPY(result.data, source.data, source.size);
-      result.data[source.size] = '\0';
-      result.size = source.size;
-   }
-
-   return result;
+SF_EXTERNAL void
+sf_string_null_terminate(struct sf_arena *arena, struct sf_string *source, struct sf_string *result) {
+	char *data = sf_allocate(arena, source->size + 1);
+	if (data) {
+		SF_MEMORY_COPY(data, source->data, source->size);
+		data[source->size] = '\0';
+		result->data	   = data;
+		result->size	   = source->size;
+	} else {
+		result->data = NULL;
+		result->size = source->size;
+	}
 }
 
-SF_EXTERNAL void sfAssert(SfBool test, char const *file, char const *fn, int line, char const *expr) {
-   if (!test) {
-      fprintf(stderr, "%s:%i - %s - SF_ASSERT(%s)\n", file, line, fn, expr);
-      abort();
-   }
+SF_EXTERNAL void sf_assert(sf_bool test, char const *file, char const *fn, int line, char const *expr) {
+	if (!test) {
+		fprintf(stderr, "%s:%i - %s - SF_ASSERT(%s)\n", file, line, fn, expr);
+		abort();
+	}
 }
 
 #endif // SF_IMPLEMENTATION
