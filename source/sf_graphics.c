@@ -1,4 +1,4 @@
-#include "sf_graphics_2.h"
+#include "sf_graphics.h"
 
 #include <sf.h>
 
