@@ -17,12 +17,12 @@
 #define NULL ((void *)0)
 #endif
 
-#define SF_ARRAY_INIT(a, value)                                                                                       \
-	do {                                                                                                          \
-		size_t i_;                                                                                            \
-		for (i_ = 0; i_ < SF_SIZE(a); ++i_)                                                                   \
-			(a)[i_] = value;                                                                              \
-	} while (0)
+#define SF_ARRAY_INIT(a, value)                                                                                                            \
+  do {                                                                                                                                     \
+    size_t i_;                                                                                                                             \
+    for (i_ = 0; i_ < SF_SIZE(a); ++i_)                                                                                                    \
+      (a)[i_] = value;                                                                                                                     \
+  } while (0)
 
 #ifdef SF_IMPLEMENTATION
 
@@ -36,192 +36,204 @@
 
 #define SF_INLINE inline
 
+#define SF_LOCAL_PERSIST static
+
 #endif // SF_IMPLEMENTATION
 
 typedef unsigned char SFByte;
 typedef uint32_t      U32;
-typedef uint64_t U64;
+typedef int32_t       I32;
+typedef uint64_t      U64;
 
 typedef int32_t SFBool;
 
 typedef struct SFArena {
-	char	*data;
-	U64 position;
-   U64 alignment;
-   U64    capacity;
+  char *data;
+  U64   position;
+  U64   alignment;
+  U64   capacity;
 } SFArena;
 
 typedef struct SFString {
-	U64   size;
-	char *data;
+  U64   size;
+  char *data;
 } SFString;
 
 typedef struct SFQueue {
-	struct SFQueue *next;
-	struct SFQueue *previous;
+  struct SFQueue *next;
+  struct SFQueue *previous;
 } SFQueue;
 
-#define SF_STRING(literal)                                                                                            \
-   (SFString) { SF_SIZE(literal), literal }	
+#define SF_STRING(literal)                                                                                                                 \
+  (SFString) {                                                                                                                             \
+    SF_SIZE(literal), literal                                                                                                              \
+  }
 
-SF_EXTERNAL void *sfArenaAllocate(SFArena *arena, U64 size);
+SF_EXTERNAL void   *sfArenaAllocate(SFArena *arena, U64 size);
 SF_EXTERNAL SFArena sfArenaScratch(SFArena *arena, U64 capacity);
 SF_EXTERNAL void    sfArenaClear(SFArena *arena);
 
-SF_INLINE SFBool sfQueueIsEmpty(SFQueue *queue) { 
-	return (queue) == (queue)->next; 
+SF_INLINE SFBool sfQueueIsEmpty(SFQueue *queue) {
+  return (queue) == (queue)->next;
 }
 
-SF_INLINE SFQueue *sfQueueNext(SFQueue *queue) { 
-	return (queue)->next; 
+SF_INLINE SFQueue *sfQueueNext(SFQueue *queue) {
+  return (queue)->next;
 }
 
-SF_INLINE SFQueue *sfQueueNextNoSourceNode(SFQueue *source, SFQueue *queue) { 
-	return (queue)->next != (source) ? (queue)->next : (queue)->next->next; 
+SF_INLINE SFQueue *sfQueueNextNoSourceNode(SFQueue *source, SFQueue *queue) {
+  return (queue)->next != (source) ? (queue)->next : (queue)->next->next;
 }
 
-SF_INLINE SFQueue *sfQueueHead(SFQueue *queue) { 
-	return (queue)->next; 
+SF_INLINE SFQueue *sfQueueHead(SFQueue *queue) {
+  return (queue)->next;
 }
 
-SF_INLINE SFQueue *sfQueuePrevious(SFQueue *queue) { 
-	return (queue)->previous; 
+SF_INLINE SFQueue *sfQueuePrevious(SFQueue *queue) {
+  return (queue)->previous;
 }
 
 #define SF_QUEUE_FOR_EACH(it, head) for ((it) = (head)->next; (it) != (head); (it) = (it)->next)
 #define SF_QUEUE_DATA(queue, type, name) (type *)((intptr_t)(queue) - SF_OFFSET_OF(type, name))
 
 SF_INLINE void sfQueueInit(SFQueue *queue) {
-	queue->previous = queue;
-	queue->next = queue;
+  queue->previous = queue;
+  queue->next     = queue;
 }
 
 SF_INLINE void sfQueueInsertHead(SFQueue *head, SFQueue *queue) {
-	queue->next = head->next;
-	queue->previous = head;
-	queue->next->previous = queue;
-	head->next = queue;
+  queue->next           = head->next;
+  queue->previous       = head;
+  queue->next->previous = queue;
+  head->next            = queue;
 }
 
 SF_INLINE void sfQueueRemove(SFQueue *queue) {
-	queue->next->previous = queue->previous;
-	queue->previous->next = queue->next;
+  queue->next->previous = queue->previous;
+  queue->previous->next = queue->next;
 }
 
 SF_INLINE void sfMemoryCopy(void *destination, void const *source, U64 count) {
-   U64 i;
-	for (i = 0; i < count; ++i)
-		((SFByte *)destination)[i] = ((SFByte const *)source)[i];
+  U64 i;
+  for (i = 0; i < count; ++i)
+    ((SFByte *)destination)[i] = ((SFByte const *)source)[i];
 }
 
 SF_INLINE void sfMemorySet(void *destination, int value, U64 count) {
-	U64 i;
-	for (i = 0; i < count; ++i)
-		((SFByte *)destination)[i] = (SFByte)value;
+  U64 i;
+  for (i = 0; i < count; ++i)
+    ((SFByte *)destination)[i] = (SFByte)value;
 }
 
-SF_EXTERNAL SFString sfStringFromNonLiteral(char const *non_literal, U64 maxSize);
-SF_EXTERNAL SFBool sfStringCompare(SFString lhs, SFString rhs, U64 maxSize);
+SF_EXTERNAL SFString sfStringFromNonLiteral(char const *nonLiteral, U64 maxSize);
+SF_EXTERNAL SFBool   sfStringCompare(SFString lhs, SFString rhs, U64 maxSize);
 SF_EXTERNAL SFString sfStringClone(SFArena *arena, SFString source);
 SF_EXTERNAL SFString sfStringNullTerminate(SFArena *arena, SFString source);
-SF_EXTERNAL void sfAssert(SFBool test, SFString file, SFString function, int line, SFString expresion);
+SF_EXTERNAL void     sfAssert(SFBool test, SFString file, SFString function, int line, SFString expresion);
 
-#define SF_IMPLEMENTATION
-#ifdef SF_IMPLEMENTATION
+#ifdef SF_CORE_IMPLEMENTATION
 
 #include <stdio.h>
 
 SF_INTERNAL U64 sfU64Align(U64 value, U64 alignment) {
-	return (value + alignment - 1) & ~(alignment - 1);
+  return (value + alignment - 1) & ~(alignment - 1);
 }
 
 SF_EXTERNAL void *sfArenaAllocate(SFArena *arena, U64 size) {
-   if (!arena || !size)
-      return NULL;
+  SFByte *memory = NULL;
 
-   U64 reqSize = arena->position + size;
-	if (reqSize > arena->capacity)
-		return NULL;
+  if (arena && size) {
+    U64 reqSize = arena->position + size;
 
-	SFByte *memory = &arena->data[arena->position];
-	arena->position = sfU64Align(reqSize, arena->alignment);
+    if (reqSize < arena->capacity) {
+      memory          = &arena->data[arena->position];
+      arena->position = sfU64Align(reqSize, arena->alignment);
 
-	for (U64 i = 0; i < size; ++i)
-      memory[i] = 0x0;
-
-   return memory;
+      for (U64 i = 0; i < size; ++i)
+        memory[i] = 0x0;
+    }
+  }
+  return memory;
 }
 
 SF_EXTERNAL SFArena sfArenaScratch(SFArena *arena, U64 capacity) {
-   SFArena result = {0};
+  SFArena result = {0};
 
-	result.data = sfArenaAllocate(arena, capacity);
-	if (result.data)
-		result.capacity = capacity;
+  result.data = sfArenaAllocate(arena, capacity);
+  if (result.data) {
+    result.alignment = arena->alignment;
+    result.capacity = capacity;
+  }
 
-	return result;
+  return result;
 }
 
-SF_EXTERNAL void sfArenaClear(SFArena *arena) { arena->position = 0; }
+SF_EXTERNAL void sfArenaClear(SFArena *arena) {
+  arena->position = 0;
+}
 
 SF_INTERNAL U64 sfNonLiteralStringSize(char const *nonLiteral, U64 maxSize) {
-	for (U64 i = 0; i < maxSize; ++i)
-		if ('\0' == nonLiteral[i])
-			return i;
+  U64 size = maxSize;
 
-	return maxSize;
+  for (U64 i = 0; i < maxSize && size != maxSize; ++i)
+    if ('\0' == nonLiteral[i])
+      size = i;
+
+  return size;
 }
 
-SF_EXTERNAL SFString sfStringFromNonLitral(char const *nonLiteral) {
-   SFString result = {0};
-	
-	result.data = nonLiteral;
-	result.size = sfNonLiteralSize(nonLiteral, 1024);
+SF_EXTERNAL SFString sfStringFromNonLiteral(char const *nonLiteral, U64 maxSize) {
+  SFString result = {0};
 
-	return result;
+  result.data = nonLiteral;
+  result.size = sfNonLiteralStringSize(nonLiteral, maxSize);
+
+  return result;
 }
 
 SF_EXTERNAL SFBool sfStringCompare(SFString lhs, SFString rhs, U64 maxSize) {
-	if (lhs.size != rhs.size)
-		return SF_FALSE;
+  SFBool result = SF_FALSE;
 
-	for (U64 i = 0; i < SF_MIN(lhs.size, maxSize); ++i)
-		if (lhs.data[i] != rhs.data[i])
-			return SF_FALSE;
+  if (lhs.size == rhs.size) {
+    for (U64 i = 0; i < SF_MIN(lhs.size, maxSize) && !result; ++i)
+      if (lhs.data[i] != rhs.data[i])
+        result = SF_TRUE;
+  }
 
-	return SF_TRUE;
+  return result;
 }
 
 SF_EXTERNAL SFString sfStringClone(SFArena *arena, SFString source) {
-   SFString result = {0};
+  SFString result = {0};
 
-	result.data = sfArenaAllocate(arena, source.size);
-	if (result.data) {
-      result.size = source.size;
-      sfMemoryCopy(result.data, source.data, result.size);
-	}
+  result.data = sfArenaAllocate(arena, source.size);
+  if (result.data) {
+    result.size = source.size;
+    sfMemoryCopy(result.data, source.data, result.size);
+  }
 
-	return result;
+  return result;
 }
 
 SF_EXTERNAL SFString sfStringNullTerminate(SFArena *arena, SFString source) {
-   SFString result = {0};
+  SFString result = {0};
 
-   result.data = sfArenaAllocate(arena, source.size + 1);
-   if (result.data) {
-      result.size = source.size + 1;
-      sfMemoryCopy(result.data, source.data, source.size);
-      result.data[source.size] = '\0';
-   }
+  result.data = sfArenaAllocate(arena, source.size + 1);
+  if (result.data) {
+    result.size = source.size + 1;
+    sfMemoryCopy(result.data, source.data, source.size);
+    result.data[source.size] = '\0';
+  }
 
-   return result;
+  return result;
 }
 
 SF_EXTERNAL void sfAssert(SFBool test, SFString file, SFString function, int line, SFString expression) {
-	if (!test) {
-		fprintf(stderr, "%.*s:%i - %.*s - SF_ASSERT(%.*s)\n", file.size, file.data, line, function.size, function.data, expression.size, expression.data);
-		abort();
-	}
+  if (!test) {
+    fprintf(stderr, "%.*s:%i - %.*s - SF_ASSERT(%.*s)\n", (unsigned int)file.size, file.data, line, (unsigned int)function.size,
+            function.data, (unsigned int)expression.size, expression.data);
+    abort();
+  }
 }
 
 #endif // SF_IMPLEMENTATION
