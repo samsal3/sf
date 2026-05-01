@@ -156,33 +156,33 @@ SF_INTERNAL SFString sfGraphicsStringFromVulkanresult(VkResult vkresult) {
   SFString result = {0};
 
   switch (vkresult) {
-    case VK_SUCCESS:                        result = SF_STRING("VK_SUCCESS");
-    case VK_NOT_READY:                      result = SF_STRING("VK_NOT_READY");
-    case VK_TIMEOUT:                        result = SF_STRING("VK_TIMEOUT");
-    case VK_EVENT_SET:                      result = SF_STRING("VK_EVENT_SET");
-    case VK_EVENT_RESET:                    result = SF_STRING("VK_EVENT_RESET");
-    case VK_INCOMPLETE:                     result = SF_STRING("VK_INCOMPLETE");
-    case VK_ERROR_OUT_OF_HOST_MEMORY:       result = SF_STRING("VK_ERROR_OUT_OF_HOST_MEMORY");
-    case VK_ERROR_OUT_OF_DEVICE_MEMORY:     result = SF_STRING("VK_ERROR_OUT_OF_DEVICE_MEMORY");
-    case VK_ERROR_INITIALIZATION_FAILED:    result = SF_STRING("VK_ERROR_INITIALIZATION_FAILED");
-    case VK_ERROR_DEVICE_LOST:              result = SF_STRING("VK_ERROR_DEVICE_LOST");
-    case VK_ERROR_MEMORY_MAP_FAILED:        result = SF_STRING("VK_ERROR_MEMORY_MAP_FAILED");
-    case VK_ERROR_LAYER_NOT_PRESENT:        result = SF_STRING("VK_ERROR_LAYER_NOT_PRESENT");
-    case VK_ERROR_EXTENSION_NOT_PRESENT:    result = SF_STRING("VK_ERROR_EXTENSION_NOT_PRESENT");
-    case VK_ERROR_FEATURE_NOT_PRESENT:      result = SF_STRING("VK_ERROR_FEATURE_NOT_PRESENT");
-    case VK_ERROR_INCOMPATIBLE_DRIVER:      result = SF_STRING("VK_ERROR_INCOMPATIBLE_DRIVER");
-    case VK_ERROR_TOO_MANY_OBJECTS:         result = SF_STRING("VK_ERROR_TOO_MANY_OBJECTS");
-    case VK_ERROR_FORMAT_NOT_SUPPORTED:     result = SF_STRING("VK_ERROR_FORMAT_NOT_SUPPORTED");
-    case VK_ERROR_FRAGMENTED_POOL:          result = SF_STRING("VK_ERROR_FRAGMENTED_POOL");
-    case VK_ERROR_OUT_OF_POOL_MEMORY:       result = SF_STRING("VK_ERROR_OUT_OF_POOL_MEMORY");
-    case VK_ERROR_INVALID_EXTERNAL_HANDLE:  result = SF_STRING("VK_ERROR_INVALID_EXTERNAL_HANDLE");
-    case VK_ERROR_SURFACE_LOST_KHR:         result = SF_STRING("VK_ERROR_SURFACE_LOST_KHR");
-    case VK_ERROR_NATIVE_WINDOW_IN_USE_KHR: result = SF_STRING("VK_ERROR_NATIVE_WINDOW_IN_USE_KHR");
-    case VK_SUBOPTIMAL_KHR:                 result = SF_STRING("VK_SUBOPTIMAL_KHR");
-    case VK_ERROR_OUT_OF_DATE_KHR:          result = SF_STRING("VK_ERROR_OUT_OF_DATE_KHR");
+    case VK_SUCCESS:                        result = SF_STRING("VK_SUCCESS"); break;
+    case VK_NOT_READY:                      result = SF_STRING("VK_NOT_READY"); break;
+    case VK_TIMEOUT:                        result = SF_STRING("VK_TIMEOUT"); break;
+    case VK_EVENT_SET:                      result = SF_STRING("VK_EVENT_SET"); break;
+    case VK_EVENT_RESET:                    result = SF_STRING("VK_EVENT_RESET"); break;
+    case VK_INCOMPLETE:                     result = SF_STRING("VK_INCOMPLETE"); break;
+    case VK_ERROR_OUT_OF_HOST_MEMORY:       result = SF_STRING("VK_ERROR_OUT_OF_HOST_MEMORY"); break;
+    case VK_ERROR_OUT_OF_DEVICE_MEMORY:     result = SF_STRING("VK_ERROR_OUT_OF_DEVICE_MEMORY"); break;
+    case VK_ERROR_INITIALIZATION_FAILED:    result = SF_STRING("VK_ERROR_INITIALIZATION_FAILED"); break;
+    case VK_ERROR_DEVICE_LOST:              result = SF_STRING("VK_ERROR_DEVICE_LOST"); break;
+    case VK_ERROR_MEMORY_MAP_FAILED:        result = SF_STRING("VK_ERROR_MEMORY_MAP_FAILED"); break;
+    case VK_ERROR_LAYER_NOT_PRESENT:        result = SF_STRING("VK_ERROR_LAYER_NOT_PRESENT"); break;
+    case VK_ERROR_EXTENSION_NOT_PRESENT:    result = SF_STRING("VK_ERROR_EXTENSION_NOT_PRESENT"); break;
+    case VK_ERROR_FEATURE_NOT_PRESENT:      result = SF_STRING("VK_ERROR_FEATURE_NOT_PRESENT"); break;
+    case VK_ERROR_INCOMPATIBLE_DRIVER:      result = SF_STRING("VK_ERROR_INCOMPATIBLE_DRIVER"); break;
+    case VK_ERROR_TOO_MANY_OBJECTS:         result = SF_STRING("VK_ERROR_TOO_MANY_OBJECTS"); break;
+    case VK_ERROR_FORMAT_NOT_SUPPORTED:     result = SF_STRING("VK_ERROR_FORMAT_NOT_SUPPORTED"); break;
+    case VK_ERROR_FRAGMENTED_POOL:          result = SF_STRING("VK_ERROR_FRAGMENTED_POOL"); break;
+    case VK_ERROR_OUT_OF_POOL_MEMORY:       result = SF_STRING("VK_ERROR_OUT_OF_POOL_MEMORY"); break;
+    case VK_ERROR_INVALID_EXTERNAL_HANDLE:  result = SF_STRING("VK_ERROR_INVALID_EXTERNAL_HANDLE"); break;
+    case VK_ERROR_SURFACE_LOST_KHR:         result = SF_STRING("VK_ERROR_SURFACE_LOST_KHR"); break;
+    case VK_ERROR_NATIVE_WINDOW_IN_USE_KHR: result = SF_STRING("VK_ERROR_NATIVE_WINDOW_IN_USE_KHR"); break;
+    case VK_SUBOPTIMAL_KHR:                 result = SF_STRING("VK_SUBOPTIMAL_KHR"); break;
+    case VK_ERROR_OUT_OF_DATE_KHR:          result = SF_STRING("VK_ERROR_OUT_OF_DATE_KHR"); break;
 
     case VK_ERROR_UNKNOWN:
-    default:               result = SF_STRING("VK_ERROR_UNKNOWN");
+    default:               result = SF_STRING("VK_ERROR_UNKNOWN"); break;
   }
 
   return result;
@@ -420,11 +420,11 @@ SF_INTERNAL VkImageViewType sfGraphicsVulkanImageViewTypeFromTextureType(SFGraph
   VkImageViewType result = VK_IMAGE_VIEW_TYPE_1D;
 
   switch (type) {
-    case SF_GRAPHICS_TEXTURE_TYPE_1D:   result = VK_IMAGE_VIEW_TYPE_1D;
-    case SF_GRAPHICS_TEXTURE_TYPE_2D:   result = VK_IMAGE_VIEW_TYPE_2D;
-    case SF_GRAPHICS_TEXTURE_TYPE_3D:   result = VK_IMAGE_VIEW_TYPE_3D;
-    case SF_GRAPHICS_TEXTURE_TYPE_CUBE: result = VK_IMAGE_VIEW_TYPE_CUBE;
-    default:                            result = VK_IMAGE_VIEW_TYPE_2D;
+    case SF_GRAPHICS_TEXTURE_TYPE_1D:   result = VK_IMAGE_VIEW_TYPE_1D; break;
+    case SF_GRAPHICS_TEXTURE_TYPE_2D:   result = VK_IMAGE_VIEW_TYPE_2D; break;
+    case SF_GRAPHICS_TEXTURE_TYPE_3D:   result = VK_IMAGE_VIEW_TYPE_3D; break;
+    case SF_GRAPHICS_TEXTURE_TYPE_CUBE: result = VK_IMAGE_VIEW_TYPE_CUBE; break;
+    default:                            result = VK_IMAGE_VIEW_TYPE_2D; break;
   }
 
   return result;
@@ -434,11 +434,11 @@ SF_INTERNAL VkImageType sfGraphicsVulkanImageTypeFromTextureType(SFGraphicsTextu
   VkImageType result = VK_IMAGE_TYPE_1D;
 
   switch (type) {
-    case SF_GRAPHICS_TEXTURE_TYPE_1D:   result = VK_IMAGE_TYPE_1D;
-    case SF_GRAPHICS_TEXTURE_TYPE_2D:   result = VK_IMAGE_TYPE_2D;
-    case SF_GRAPHICS_TEXTURE_TYPE_3D:   result = VK_IMAGE_TYPE_3D;
-    case SF_GRAPHICS_TEXTURE_TYPE_CUBE: result = VK_IMAGE_TYPE_2D;
-    default:                            result = VK_IMAGE_TYPE_2D;
+    case SF_GRAPHICS_TEXTURE_TYPE_1D:   result = VK_IMAGE_TYPE_1D; break;
+    case SF_GRAPHICS_TEXTURE_TYPE_2D:   result = VK_IMAGE_TYPE_2D; break;
+    case SF_GRAPHICS_TEXTURE_TYPE_3D:   result = VK_IMAGE_TYPE_3D; break;
+    case SF_GRAPHICS_TEXTURE_TYPE_CUBE: result = VK_IMAGE_TYPE_2D; break;
+    default:                            result = VK_IMAGE_TYPE_2D; break;
   }
 
   return result;
@@ -449,41 +449,41 @@ SF_INTERNAL VkFormat sfGraphicsVulkanFormatFromFormat(SFGraphicsFormat format) {
 
   switch (format) {
     // 1 channel
-    case SF_GRAPHICS_FORMAT_R8_UNORM:            result = VK_FORMAT_R8_UNORM;
-    case SF_GRAPHICS_FORMAT_R16_UNORM:           result = VK_FORMAT_R16_UNORM;
-    case SF_GRAPHICS_FORMAT_R16_UINT:            result = VK_FORMAT_R16_UINT;
-    case SF_GRAPHICS_FORMAT_R16_SFLOAT:          result = VK_FORMAT_R16_SFLOAT;
-    case SF_GRAPHICS_FORMAT_R32_UINT:            result = VK_FORMAT_R32_UINT;
-    case SF_GRAPHICS_FORMAT_R32_SFLOAT:          result = VK_FORMAT_R32_SFLOAT;
+    case SF_GRAPHICS_FORMAT_R8_UNORM:            result = VK_FORMAT_R8_UNORM; break;
+    case SF_GRAPHICS_FORMAT_R16_UNORM:           result = VK_FORMAT_R16_UNORM; break;
+    case SF_GRAPHICS_FORMAT_R16_UINT:            result = VK_FORMAT_R16_UINT; break;
+    case SF_GRAPHICS_FORMAT_R16_SFLOAT:          result = VK_FORMAT_R16_SFLOAT; break;
+    case SF_GRAPHICS_FORMAT_R32_UINT:            result = VK_FORMAT_R32_UINT; break;
+    case SF_GRAPHICS_FORMAT_R32_SFLOAT:          result = VK_FORMAT_R32_SFLOAT; break;
     // 2 channel
-    case SF_GRAPHICS_FORMAT_R8G8_UNORM:          result = VK_FORMAT_R8G8_UNORM;
-    case SF_GRAPHICS_FORMAT_R16G16_UNORM:        result = VK_FORMAT_R16G16_UNORM;
-    case SF_GRAPHICS_FORMAT_R16G16_SFLOAT:       result = VK_FORMAT_R16G16_SFLOAT;
-    case SF_GRAPHICS_FORMAT_R32G32_UINT:         result = VK_FORMAT_R32G32_UINT;
-    case SF_GRAPHICS_FORMAT_R32G32_SFLOAT:       result = VK_FORMAT_R32G32_SFLOAT;
+    case SF_GRAPHICS_FORMAT_R8G8_UNORM:          result = VK_FORMAT_R8G8_UNORM; break;
+    case SF_GRAPHICS_FORMAT_R16G16_UNORM:        result = VK_FORMAT_R16G16_UNORM; break;
+    case SF_GRAPHICS_FORMAT_R16G16_SFLOAT:       result = VK_FORMAT_R16G16_SFLOAT; break;
+    case SF_GRAPHICS_FORMAT_R32G32_UINT:         result = VK_FORMAT_R32G32_UINT; break;
+    case SF_GRAPHICS_FORMAT_R32G32_SFLOAT:       result = VK_FORMAT_R32G32_SFLOAT; break;
     // 3 channel
-    case SF_GRAPHICS_FORMAT_R8G8B8_UNORM:        result = VK_FORMAT_R8G8B8_UNORM;
-    case SF_GRAPHICS_FORMAT_R16G16B16_UNORM:     result = VK_FORMAT_R16G16B16_UNORM;
-    case SF_GRAPHICS_FORMAT_R16G16B16_SFLOAT:    result = VK_FORMAT_R16G16B16_SFLOAT;
-    case SF_GRAPHICS_FORMAT_R32G32B32_UINT:      result = VK_FORMAT_R32G32B32_UINT;
-    case SF_GRAPHICS_FORMAT_R32G32B32_SFLOAT:    result = VK_FORMAT_R32G32B32_SFLOAT;
+    case SF_GRAPHICS_FORMAT_R8G8B8_UNORM:        result = VK_FORMAT_R8G8B8_UNORM; break;
+    case SF_GRAPHICS_FORMAT_R16G16B16_UNORM:     result = VK_FORMAT_R16G16B16_UNORM; break;
+    case SF_GRAPHICS_FORMAT_R16G16B16_SFLOAT:    result = VK_FORMAT_R16G16B16_SFLOAT; break;
+    case SF_GRAPHICS_FORMAT_R32G32B32_UINT:      result = VK_FORMAT_R32G32B32_UINT; break;
+    case SF_GRAPHICS_FORMAT_R32G32B32_SFLOAT:    result = VK_FORMAT_R32G32B32_SFLOAT; break;
     // 4 channel
-    case SF_GRAPHICS_FORMAT_B8G8R8A8_UNORM:      result = VK_FORMAT_B8G8R8A8_UNORM;
-    case SF_GRAPHICS_FORMAT_B8G8R8A8_SRGB:       result = VK_FORMAT_B8G8R8A8_SRGB;
-    case SF_GRAPHICS_FORMAT_R8G8B8A8_UNORM:      result = VK_FORMAT_R8G8B8A8_UNORM;
-    case SF_GRAPHICS_FORMAT_R16G16B16A16_UNORM:  result = VK_FORMAT_R16G16B16A16_UNORM;
-    case SF_GRAPHICS_FORMAT_R16G16B16A16_SFLOAT: result = VK_FORMAT_R16G16B16A16_SFLOAT;
-    case SF_GRAPHICS_FORMAT_R32G32B32A32_UINT:   result = VK_FORMAT_R32G32B32A32_UINT;
-    case SF_GRAPHICS_FORMAT_R32G32B32A32_SFLOAT: result = VK_FORMAT_R32G32B32A32_SFLOAT;
+    case SF_GRAPHICS_FORMAT_B8G8R8A8_UNORM:      result = VK_FORMAT_B8G8R8A8_UNORM; break;
+    case SF_GRAPHICS_FORMAT_B8G8R8A8_SRGB:       result = VK_FORMAT_B8G8R8A8_SRGB; break;
+    case SF_GRAPHICS_FORMAT_R8G8B8A8_UNORM:      result = VK_FORMAT_R8G8B8A8_UNORM; break;
+    case SF_GRAPHICS_FORMAT_R16G16B16A16_UNORM:  result = VK_FORMAT_R16G16B16A16_UNORM; break;
+    case SF_GRAPHICS_FORMAT_R16G16B16A16_SFLOAT: result = VK_FORMAT_R16G16B16A16_SFLOAT; break;
+    case SF_GRAPHICS_FORMAT_R32G32B32A32_UINT:   result = VK_FORMAT_R32G32B32A32_UINT; break;
+    case SF_GRAPHICS_FORMAT_R32G32B32A32_SFLOAT: result = VK_FORMAT_R32G32B32A32_SFLOAT; break;
     // Depth/stencil
-    case SF_GRAPHICS_FORMAT_D16_UNORM:           result = VK_FORMAT_D16_UNORM;
-    case SF_GRAPHICS_FORMAT_X8_D24_UNORM_PACK32: result = VK_FORMAT_X8_D24_UNORM_PACK32;
-    case SF_GRAPHICS_FORMAT_D32_SFLOAT:          result = VK_FORMAT_D32_SFLOAT;
-    case SF_GRAPHICS_FORMAT_S8_UINT:             result = VK_FORMAT_S8_UINT;
-    case SF_GRAPHICS_FORMAT_D16_UNORM_S8_UINT:   result = VK_FORMAT_D16_UNORM_S8_UINT;
-    case SF_GRAPHICS_FORMAT_D24_UNORM_S8_UINT:   result = VK_FORMAT_D24_UNORM_S8_UINT;
-    case SF_GRAPHICS_FORMAT_D32_SFLOAT_S8_UINT:  result = VK_FORMAT_D32_SFLOAT_S8_UINT;
-    default:                                     result = VK_FORMAT_UNDEFINED;
+    case SF_GRAPHICS_FORMAT_D16_UNORM:           result = VK_FORMAT_D16_UNORM; break;
+    case SF_GRAPHICS_FORMAT_X8_D24_UNORM_PACK32: result = VK_FORMAT_X8_D24_UNORM_PACK32; break;
+    case SF_GRAPHICS_FORMAT_D32_SFLOAT:          result = VK_FORMAT_D32_SFLOAT; break;
+    case SF_GRAPHICS_FORMAT_S8_UINT:             result = VK_FORMAT_S8_UINT; break;
+    case SF_GRAPHICS_FORMAT_D16_UNORM_S8_UINT:   result = VK_FORMAT_D16_UNORM_S8_UINT; break;
+    case SF_GRAPHICS_FORMAT_D24_UNORM_S8_UINT:   result = VK_FORMAT_D24_UNORM_S8_UINT; break;
+    case SF_GRAPHICS_FORMAT_D32_SFLOAT_S8_UINT:  result = VK_FORMAT_D32_SFLOAT_S8_UINT; break;
+    default:                                     result = VK_FORMAT_UNDEFINED; break;
   }
 
   return result;
@@ -494,41 +494,41 @@ SF_INTERNAL SFGraphicsFormat sfGraphicsFormatFromVulkanFormat(VkFormat format) {
 
   switch (format) {
     // 1 channel
-    case VK_FORMAT_R8_UNORM:            result = SF_GRAPHICS_FORMAT_R8_UNORM;
-    case VK_FORMAT_R16_UNORM:           result = SF_GRAPHICS_FORMAT_R16_UNORM;
-    case VK_FORMAT_R16_UINT:            result = SF_GRAPHICS_FORMAT_R16_UINT;
-    case VK_FORMAT_R16_SFLOAT:          result = SF_GRAPHICS_FORMAT_R16_SFLOAT;
-    case VK_FORMAT_R32_UINT:            result = SF_GRAPHICS_FORMAT_R32_UINT;
-    case VK_FORMAT_R32_SFLOAT:          result = SF_GRAPHICS_FORMAT_R32_SFLOAT;
+    case VK_FORMAT_R8_UNORM:            result = SF_GRAPHICS_FORMAT_R8_UNORM; break;
+    case VK_FORMAT_R16_UNORM:           result = SF_GRAPHICS_FORMAT_R16_UNORM; break;
+    case VK_FORMAT_R16_UINT:            result = SF_GRAPHICS_FORMAT_R16_UINT; break;
+    case VK_FORMAT_R16_SFLOAT:          result = SF_GRAPHICS_FORMAT_R16_SFLOAT; break;
+    case VK_FORMAT_R32_UINT:            result = SF_GRAPHICS_FORMAT_R32_UINT; break;
+    case VK_FORMAT_R32_SFLOAT:          result = SF_GRAPHICS_FORMAT_R32_SFLOAT; break;
     // 2 channel
-    case VK_FORMAT_R8G8_UNORM:          result = SF_GRAPHICS_FORMAT_R8G8_UNORM;
-    case VK_FORMAT_R16G16_UNORM:        result = SF_GRAPHICS_FORMAT_R16G16_UNORM;
-    case VK_FORMAT_R16G16_SFLOAT:       result = SF_GRAPHICS_FORMAT_R16G16_SFLOAT;
-    case VK_FORMAT_R32G32_UINT:         result = SF_GRAPHICS_FORMAT_R32G32_UINT;
-    case VK_FORMAT_R32G32_SFLOAT:       result = SF_GRAPHICS_FORMAT_R32G32_SFLOAT;
+    case VK_FORMAT_R8G8_UNORM:          result = SF_GRAPHICS_FORMAT_R8G8_UNORM; break;
+    case VK_FORMAT_R16G16_UNORM:        result = SF_GRAPHICS_FORMAT_R16G16_UNORM; break;
+    case VK_FORMAT_R16G16_SFLOAT:       result = SF_GRAPHICS_FORMAT_R16G16_SFLOAT; break;
+    case VK_FORMAT_R32G32_UINT:         result = SF_GRAPHICS_FORMAT_R32G32_UINT; break;
+    case VK_FORMAT_R32G32_SFLOAT:       result = SF_GRAPHICS_FORMAT_R32G32_SFLOAT; break;
     // 3 channel
-    case VK_FORMAT_R8G8B8_UNORM:        result = SF_GRAPHICS_FORMAT_R8G8B8_UNORM;
-    case VK_FORMAT_R16G16B16_UNORM:     result = SF_GRAPHICS_FORMAT_R16G16B16_UNORM;
-    case VK_FORMAT_R16G16B16_SFLOAT:    result = SF_GRAPHICS_FORMAT_R16G16B16_SFLOAT;
-    case VK_FORMAT_R32G32B32_UINT:      result = SF_GRAPHICS_FORMAT_R32G32B32_UINT;
-    case VK_FORMAT_R32G32B32_SFLOAT:    result = SF_GRAPHICS_FORMAT_R32G32B32_SFLOAT;
+    case VK_FORMAT_R8G8B8_UNORM:        result = SF_GRAPHICS_FORMAT_R8G8B8_UNORM; break;
+    case VK_FORMAT_R16G16B16_UNORM:     result = SF_GRAPHICS_FORMAT_R16G16B16_UNORM; break;
+    case VK_FORMAT_R16G16B16_SFLOAT:    result = SF_GRAPHICS_FORMAT_R16G16B16_SFLOAT; break;
+    case VK_FORMAT_R32G32B32_UINT:      result = SF_GRAPHICS_FORMAT_R32G32B32_UINT; break;
+    case VK_FORMAT_R32G32B32_SFLOAT:    result = SF_GRAPHICS_FORMAT_R32G32B32_SFLOAT; break;
     // 4 channel
-    case VK_FORMAT_B8G8R8A8_UNORM:      result = SF_GRAPHICS_FORMAT_B8G8R8A8_UNORM;
-    case VK_FORMAT_B8G8R8A8_SRGB:       result = SF_GRAPHICS_FORMAT_B8G8R8A8_SRGB;
-    case VK_FORMAT_R8G8B8A8_UNORM:      result = SF_GRAPHICS_FORMAT_R8G8B8A8_UNORM;
-    case VK_FORMAT_R16G16B16A16_UNORM:  result = SF_GRAPHICS_FORMAT_R16G16B16A16_UNORM;
-    case VK_FORMAT_R16G16B16A16_SFLOAT: result = SF_GRAPHICS_FORMAT_R16G16B16A16_SFLOAT;
-    case VK_FORMAT_R32G32B32A32_UINT:   result = SF_GRAPHICS_FORMAT_R32G32B32A32_UINT;
-    case VK_FORMAT_R32G32B32A32_SFLOAT: result = SF_GRAPHICS_FORMAT_R32G32B32A32_SFLOAT;
+    case VK_FORMAT_B8G8R8A8_UNORM:      result = SF_GRAPHICS_FORMAT_B8G8R8A8_UNORM; break;
+    case VK_FORMAT_B8G8R8A8_SRGB:       result = SF_GRAPHICS_FORMAT_B8G8R8A8_SRGB; break;
+    case VK_FORMAT_R8G8B8A8_UNORM:      result = SF_GRAPHICS_FORMAT_R8G8B8A8_UNORM; break;
+    case VK_FORMAT_R16G16B16A16_UNORM:  result = SF_GRAPHICS_FORMAT_R16G16B16A16_UNORM; break;
+    case VK_FORMAT_R16G16B16A16_SFLOAT: result = SF_GRAPHICS_FORMAT_R16G16B16A16_SFLOAT; break;
+    case VK_FORMAT_R32G32B32A32_UINT:   result = SF_GRAPHICS_FORMAT_R32G32B32A32_UINT; break;
+    case VK_FORMAT_R32G32B32A32_SFLOAT: result = SF_GRAPHICS_FORMAT_R32G32B32A32_SFLOAT; break;
     // Depth/stencil
-    case VK_FORMAT_D16_UNORM:           result = SF_GRAPHICS_FORMAT_D16_UNORM;
-    case VK_FORMAT_X8_D24_UNORM_PACK32: result = SF_GRAPHICS_FORMAT_X8_D24_UNORM_PACK32;
-    case VK_FORMAT_D32_SFLOAT:          result = SF_GRAPHICS_FORMAT_D32_SFLOAT;
-    case VK_FORMAT_S8_UINT:             result = SF_GRAPHICS_FORMAT_S8_UINT;
-    case VK_FORMAT_D16_UNORM_S8_UINT:   result = SF_GRAPHICS_FORMAT_D16_UNORM_S8_UINT;
-    case VK_FORMAT_D24_UNORM_S8_UINT:   result = SF_GRAPHICS_FORMAT_D24_UNORM_S8_UINT;
-    case VK_FORMAT_D32_SFLOAT_S8_UINT:  result = SF_GRAPHICS_FORMAT_D32_SFLOAT_S8_UINT;
-    default:                            result = SF_GRAPHICS_FORMAT_UNDEFINED;
+    case VK_FORMAT_D16_UNORM:           result = SF_GRAPHICS_FORMAT_D16_UNORM; break;
+    case VK_FORMAT_X8_D24_UNORM_PACK32: result = SF_GRAPHICS_FORMAT_X8_D24_UNORM_PACK32; break;
+    case VK_FORMAT_D32_SFLOAT:          result = SF_GRAPHICS_FORMAT_D32_SFLOAT; break;
+    case VK_FORMAT_S8_UINT:             result = SF_GRAPHICS_FORMAT_S8_UINT; break;
+    case VK_FORMAT_D16_UNORM_S8_UINT:   result = SF_GRAPHICS_FORMAT_D16_UNORM_S8_UINT; break;
+    case VK_FORMAT_D24_UNORM_S8_UINT:   result = SF_GRAPHICS_FORMAT_D24_UNORM_S8_UINT; break;
+    case VK_FORMAT_D32_SFLOAT_S8_UINT:  result = SF_GRAPHICS_FORMAT_D32_SFLOAT_S8_UINT; break;
+    default:                            result = SF_GRAPHICS_FORMAT_UNDEFINED; break;
   }
 
   return result;
@@ -563,16 +563,16 @@ SF_INTERNAL VkImageAspectFlags sfGraphicsVulkanImageAspectFlagsFromFormat(SFGrap
     case SF_GRAPHICS_FORMAT_R16G16B16A16_UNORM:
     case SF_GRAPHICS_FORMAT_R16G16B16A16_SFLOAT:
     case SF_GRAPHICS_FORMAT_R32G32B32A32_UINT:
-    case SF_GRAPHICS_FORMAT_R32G32B32A32_SFLOAT: result = VK_IMAGE_ASPECT_COLOR_BIT;
+    case SF_GRAPHICS_FORMAT_R32G32B32A32_SFLOAT: result = VK_IMAGE_ASPECT_COLOR_BIT; break;
     // Depth/stencil
     case SF_GRAPHICS_FORMAT_D16_UNORM:
     case SF_GRAPHICS_FORMAT_X8_D24_UNORM_PACK32:
-    case SF_GRAPHICS_FORMAT_D32_SFLOAT:          result = VK_IMAGE_ASPECT_DEPTH_BIT;
-    case SF_GRAPHICS_FORMAT_S8_UINT:             result = VK_IMAGE_ASPECT_STENCIL_BIT;
+    case SF_GRAPHICS_FORMAT_D32_SFLOAT:          result = VK_IMAGE_ASPECT_DEPTH_BIT; break;
+    case SF_GRAPHICS_FORMAT_S8_UINT:             result = VK_IMAGE_ASPECT_STENCIL_BIT; break;
     case SF_GRAPHICS_FORMAT_D16_UNORM_S8_UINT:
     case SF_GRAPHICS_FORMAT_D24_UNORM_S8_UINT:
-    case SF_GRAPHICS_FORMAT_D32_SFLOAT_S8_UINT:  result = VK_IMAGE_ASPECT_DEPTH_BIT | VK_IMAGE_ASPECT_STENCIL_BIT;
-    default:                                     result = 0;
+    case SF_GRAPHICS_FORMAT_D32_SFLOAT_S8_UINT:  result = VK_IMAGE_ASPECT_DEPTH_BIT | VK_IMAGE_ASPECT_STENCIL_BIT; break;
+    default:                                     result = 0; break;
   }
 
   return result;
@@ -581,12 +581,12 @@ SF_INTERNAL VkImageAspectFlags sfGraphicsVulkanImageAspectFlagsFromFormat(SFGrap
 SF_INTERNAL VkSampleCountFlags sfGraphicsVulkanSampleCountFromSampleCount(SFGraphicsSampleCount samples) {
   VkSampleCountFlagBits result = VK_SAMPLE_COUNT_1_BIT;
   switch (samples) {
-    case SF_GRAPHICS_SAMPLE_COUNT_1:  result = VK_SAMPLE_COUNT_1_BIT;
-    case SF_GRAPHICS_SAMPLE_COUNT_2:  result = VK_SAMPLE_COUNT_2_BIT;
-    case SF_GRAPHICS_SAMPLE_COUNT_4:  result = VK_SAMPLE_COUNT_4_BIT;
-    case SF_GRAPHICS_SAMPLE_COUNT_8:  result = VK_SAMPLE_COUNT_8_BIT;
-    case SF_GRAPHICS_SAMPLE_COUNT_16: result = VK_SAMPLE_COUNT_16_BIT;
-    default:                          result = VK_SAMPLE_COUNT_1_BIT;
+    case SF_GRAPHICS_SAMPLE_COUNT_1:  result = VK_SAMPLE_COUNT_1_BIT; break;
+    case SF_GRAPHICS_SAMPLE_COUNT_2:  result = VK_SAMPLE_COUNT_2_BIT; break;
+    case SF_GRAPHICS_SAMPLE_COUNT_4:  result = VK_SAMPLE_COUNT_4_BIT; break;
+    case SF_GRAPHICS_SAMPLE_COUNT_8:  result = VK_SAMPLE_COUNT_8_BIT; break;
+    case SF_GRAPHICS_SAMPLE_COUNT_16: result = VK_SAMPLE_COUNT_16_BIT; break;
+    default:                          result = VK_SAMPLE_COUNT_1_BIT; break;
   }
   return result;
 }
@@ -594,12 +594,12 @@ SF_INTERNAL VkSampleCountFlags sfGraphicsVulkanSampleCountFromSampleCount(SFGrap
 SF_INTERNAL SFGraphicsSampleCount sfGraphicsSampleCountFromVulkanSampleCount(VkSampleCountFlags samples) {
   SFGraphicsSampleCount result = SF_GRAPHICS_SAMPLE_COUNT_1;
   switch (samples) {
-    case VK_SAMPLE_COUNT_1_BIT:  result = SF_GRAPHICS_SAMPLE_COUNT_1;
-    case VK_SAMPLE_COUNT_2_BIT:  result = SF_GRAPHICS_SAMPLE_COUNT_2;
-    case VK_SAMPLE_COUNT_4_BIT:  result = SF_GRAPHICS_SAMPLE_COUNT_4;
-    case VK_SAMPLE_COUNT_8_BIT:  result = SF_GRAPHICS_SAMPLE_COUNT_8;
-    case VK_SAMPLE_COUNT_16_BIT: result = SF_GRAPHICS_SAMPLE_COUNT_16;
-    default:                     result = SF_GRAPHICS_SAMPLE_COUNT_1;
+    case VK_SAMPLE_COUNT_1_BIT:  result = SF_GRAPHICS_SAMPLE_COUNT_1; break;
+    case VK_SAMPLE_COUNT_2_BIT:  result = SF_GRAPHICS_SAMPLE_COUNT_2; break;
+    case VK_SAMPLE_COUNT_4_BIT:  result = SF_GRAPHICS_SAMPLE_COUNT_4; break;
+    case VK_SAMPLE_COUNT_8_BIT:  result = SF_GRAPHICS_SAMPLE_COUNT_8; break;
+    case VK_SAMPLE_COUNT_16_BIT: result = SF_GRAPHICS_SAMPLE_COUNT_16; break;
+    default:                     result = SF_GRAPHICS_SAMPLE_COUNT_1; break;
   }
   return result;
 }
@@ -810,15 +810,9 @@ SF_INTERNAL void sfGraphicsVulkanCreateRenderTargetRenderPass(SFGraphicsRenderer
         else
           desc->finalLayout = VK_IMAGE_LAYOUT_PRESENT_SRC_KHR;
 
-        fprintf(stderr, "%i\n", desc->format);
-
         reference->attachment = descIndex;
         reference->layout     = VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL;
-
-        fprintf(stderr, "%i\n", desc->format);
       }
-
-      fprintf(stderr, "%i\n", descriptions[0].format);
 
       for (U32 i = 0; i < renderTarget->resolveAttachmentCount; ++i) {
         U32                      descIndex = i * 2 + 1;
@@ -1164,9 +1158,6 @@ SF_EXTERNAL void sfGraphicsDestroyCommandBuffer(SFGraphicsRenderer *r, SFHandle 
 
     if (r->vkDevice) {
       if (commandBuffer->vkCommandPool) {
-        fprintf(stderr, "Destroyed command buffer with pool %p and buffer %p\n", (void *)commandBuffer->vkCommandPool,
-                (void *)commandBuffer->vkCommandBuffer);
-
         vkFreeCommandBuffers(r->vkDevice, commandBuffer->vkCommandPool, 1, &commandBuffer->vkCommandBuffer);
         commandBuffer->vkCommandBuffer = VK_NULL_HANDLE;
 
@@ -1181,7 +1172,6 @@ SF_EXTERNAL SFHandle sfGraphicsCreateCommandBuffer(SFGraphicsRenderer *r, SFBool
   SFGraphicsCommandBuffer *commandBuffer = NULL;
   if (r && r->vkDevice) {
     commandBuffer = sfGraphicsGetCommandBufferFromResourcePool(r);
-    fprintf(stderr, "Got command buffer %p from pool\n", (void *)commandBuffer);
     if (commandBuffer) {
       VkCommandPoolCreateInfo commandPoolInfo = {0};
       commandPoolInfo.sType                   = VK_STRUCTURE_TYPE_COMMAND_POOL_CREATE_INFO;
@@ -1204,8 +1194,6 @@ SF_EXTERNAL SFHandle sfGraphicsCreateCommandBuffer(SFGraphicsRenderer *r, SFBool
         if (!SF_VULKAN_CHECK(vkAllocateCommandBuffers(r->vkDevice, &commandBufferInfo, &commandBuffer->vkCommandBuffer)))
           commandBuffer->vkCommandBuffer = VK_NULL_HANDLE;
 
-        fprintf(stderr, "Created command buffer with pool %p and buffer %p\n", (void *)commandBuffer->vkCommandPool,
-                (void *)commandBuffer->vkCommandBuffer);
       } else {
         commandBuffer->vkCommandPool = VK_NULL_HANDLE;
       }
@@ -1559,14 +1547,6 @@ SF_EXTERNAL SFGraphicsRenderer *sfGraphicsCreateRenderer(SFArena *arena, SFGraph
           r->mainCommandBuffers[i] = sfGraphicsCreateCommandBuffer(r, SF_FALSE);
           if (sfGraphicsIsNullHandle(r->mainCommandBuffers[i]))
             createdAllSyncObjects = SF_FALSE;
-        }
-
-        for (U32 i = 0; i < r->mainCommandBufferCount && createdAllSyncObjects; ++i) {
-          SFGraphicsCommandBuffer *commandBuffer = sfGraphicsCommandBufferFromHandle(r, r->mainCommandBuffers[i]);
-          if (commandBuffer) {
-            fprintf(stderr, "I EXIST command buffer with pool %p and buffer %p\n", (void *)commandBuffer->vkCommandPool,
-                    (void *)commandBuffer->vkCommandBuffer);
-          }
         }
 
         r->vkImageAcquiredSemaphoreCount = r->mainCommandBufferCount;
