@@ -1,2 +1,2 @@
 #define SF_CORE_IMPLEMENTATION
-#include "SFCore.h"
+#include "sf_core.h"

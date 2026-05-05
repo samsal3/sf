@@ -1,6 +1,6 @@
 cmake_minimum_required(VERSION 3.1...3.29)
 
-project(SF)
+project(sf)
 
 add_library(${PROJECT_NAME})
 
@@ -51,9 +51,9 @@ target_link_options(${PROJECT_NAME} PRIVATE
 )
 
 
-add_subdirectory(Source)
-add_subdirectory(Vendor)
-add_subdirectory(GLSL)
+add_subdirectory(source)
+add_subdirectory(vendor)
+add_subdirectory(glsl)
 
 target_include_directories(${PROJECT_NAME} PUBLIC 
   ${Vulkan_INCLUDE_DIRS}
@@ -72,19 +72,19 @@ target_link_libraries(${PROJECT_NAME}
 
 target_compile_definitions("${PROJECT_NAME}" 
   PRIVATE 
-  "$<$<CONFIG:Debug>:TLALOC_VULKAN_ENABLE_VALIDATION_LAYERS>"
+  "$<$<CONFIG:Debug>:SF_VULKAN_ENABLE_VALIDATOIN_LAYERS>"
 )
 
-add_executable("${PROJECT_NAME}Main" source/main.c)
+add_executable("${PROJECT_NAME}_main" source/main.c)
 
-set_target_properties("${PROJECT_NAME}Main"
+set_target_properties("${PROJECT_NAME}_main"
   PROPERTIES 
   C_STANDARD       99
   C_STANDARD_REQUIRED ON
   C_EXTENSIONS      OFF
 )
 
-target_compile_options("${PROJECT_NAME}Main"  PRIVATE
+target_compile_options("${PROJECT_NAME}_main"  PRIVATE
   "$<$<COMPILE_LANG_AND_ID:C,Clang,AppleClang>:"
   -Wall
   -Wshadow
@@ -113,7 +113,7 @@ target_compile_options("${PROJECT_NAME}Main"  PRIVATE
 )
 
 
-target_link_options("${PROJECT_NAME}Main" PRIVATE
+target_link_options("${PROJECT_NAME}_main" PRIVATE
   "$<$<COMPILE_LANG_AND_ID:C,Clang,AppleClang>:"
   -Wall
   -Wshadow
@@ -139,4 +139,4 @@ target_link_options("${PROJECT_NAME}Main" PRIVATE
 
 file(COPY "resources" DESTINATION "${CMAKE_BINARY_DIR}")
 
-target_link_libraries("${PROJECT_NAME}Main" PRIVATE ${PROJECT_NAME})
+target_link_libraries("${PROJECT_NAME}_main" PRIVATE ${PROJECT_NAME})

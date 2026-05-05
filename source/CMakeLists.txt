@@ -1,6 +1,6 @@
 target_sources(${PROJECT_NAME} PRIVATE
-  "SFCore.c"
-  "SFCore.h"
-  "SFGraphics.c"
-  "SFGraphics.h"
+  "sf_core.c"
+  "sf_core.h"
+  "sf_graphics.c"
+  "sf_graphics.h"
 )

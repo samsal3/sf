@@ -1,30 +1,29 @@
-#include <SFGraphics.h>
+#include <sf_graphics.h>
 
 #include <stdlib.h>
 
 int main(void) {
-  SFArena arena   = {0};
+  sf_arena arena   = {0};
   arena.alignment = 16;
   arena.capacity  = 1024 * 1024 * 16;
   arena.data      = malloc(1024 * 1024);
   if (arena.data) {
-    SFGraphicsGLFWPlatform *platform = sfGraphicsCreateGLFWPlatform(&arena, 800, 600, SF_STRING("SFGraphics Test"));
-
+    sf_graphics_glfw_platform *platform = sf_graphics_create_glfw_platform(&arena, 800, 600, SF_STRING("sf_graphics test"));
     if (platform) {
-      SFGraphicsRendererDescription description = {0};
-      sfGraphicsGLFWFillRendererDescription(&arena, platform, &description);
+      sf_graphics_renderer_description description = {0};
+      sf_graphics_glfw_platform_fill_renderer_description(&arena, platform, &description);
 
-      SFGraphicsRenderer *renderer = sfGraphicsCreateRenderer(&arena, &description);
+      sf_graphics_renderer *renderer = sf_graphics_create_renderer(&arena, &description);
       if (renderer) {
 
-        while (!sfGraphicsGLFWPlatformShouldClose(platform)) {
-          sfGraphicsGLFWPlatformProcessEvents(platform);
+        while (!sf_graphics_glfw_platform_should_close(platform)) {
+          sf_graphics_glfw_platform_process_events(platform);
         }
 
-        sfGraphicsDestroyRenderer(renderer);
+        sf_graphics_destroy_renderer(renderer);
       }
 
-      sfGraphicsDestroyGLFWPlatform(platform);
+      sf_graphics_destroy_glfw_platform(platform);
     }
     free(arena.data);
   }
