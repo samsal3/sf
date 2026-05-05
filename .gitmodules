@@ -1,6 +1,6 @@
-[submodule "dependencies/glfw"]
-	path = dependencies/glfw
+[submodule "vendor/glfw"]
+	path = vendor/glfw
 	url = https://github.com/glfw/glfw.git
-[submodule "dependencies/cglm"]
-	path = dependencies/cglm
+[submodule "vendor/cglm"]
+	path = vendor/cglm
 	url = https://github.com/recp/cglm.git

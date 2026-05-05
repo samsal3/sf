@@ -18,179 +18,218 @@
 #endif
 
 #define SF_ARRAY_INIT(a, value)                                                                                                            \
-  do {                                                                                                                                     \
-    size_t i_;                                                                                                                             \
-    for (i_ = 0; i_ < SF_SIZE(a); ++i_)                                                                                                    \
-      (a)[i_] = value;                                                                                                                     \
-  } while (0)
-
-#ifdef SF_IMPLEMENTATION
-
-#define SF_EXTERNAL
-#define SF_INTERNAL static
-
-#else
+	do                                                                                                                                 \
+	{                                                                                                                                  \
+		size_t i_;                                                                                                                 \
+		for (i_ = 0; i_ < SF_SIZE(a); ++i_)                                                                                        \
+			(a)[i_] = value;                                                                                                   \
+	} while (0)
 
 #define SF_EXTERNAL
 #define SF_INTERNAL static
-
 #define SF_INLINE inline
-
 #define SF_LOCAL_PERSIST static
 
-#endif // SF_IMPLEMENTATION
+#define sf_public
+#define sf_private static
+#define sf_local_persist static
 
 typedef unsigned char sf_byte;
 typedef uint32_t      u32;
-typedef int32_t       i32;
+typedef int32_t	      i32;
 typedef uint64_t      u64;
 
 typedef int32_t sf_bool;
 
-typedef struct sf_arena {
-  char *data;
-  u64   position;
-  u64   alignment;
-  u64   capacity;
+typedef struct sf_arena
+{
+	char *data;
+	u64   position;
+	u64   alignment;
+	u64   capacity;
 } sf_arena;
 
-typedef struct sf_string {
-  u64   size;
-  char *data;
+typedef struct sf_string
+{
+	u64   size;
+	char *data;
 } sf_string;
 
 #define SF_STRING(literal)                                                                                                                 \
-  (sf_string) {                                                                                                                            \
-    SF_SIZE(literal), literal                                                                                                              \
-  }
+	(sf_string)                                                                                                                        \
+	{ SF_SIZE(literal), literal }
 
-SF_EXTERNAL void    *sf_arena_allocate(sf_arena *arena, u64 size);
-SF_EXTERNAL sf_arena sf_arena_scratch(sf_arena *arena, u64 capacity);
-SF_EXTERNAL void     sf_arena_clear(sf_arena *arena);
+sf_public void *
+sf_arena_allocate(sf_arena *arena, u64 size);
 
-SF_INLINE void sf_memory_copy(void *destination, void const *source, u64 count) {
-  u64 i;
-  for (i = 0; i < count; ++i)
-    ((sf_byte *)destination)[i] = ((sf_byte const *)source)[i];
-}
+sf_public void
+sf_arena_scratch(sf_arena *arena, u64 capacity, sf_arena *scratch);
 
-SF_INLINE void sf_memory_set(void *destination, int value, u64 count) {
-  u64 i;
-  for (i = 0; i < count; ++i)
-    ((sf_byte *)destination)[i] = (sf_byte)value;
-}
+sf_public void
+sf_arena_clear(sf_arena *arena);
 
-SF_EXTERNAL sf_string sf_string_from_non_literal(char const *nonLiteral, u64 maxSize);
-SF_EXTERNAL sf_bool   sf_string_compare(sf_string lhs, sf_string rhs, u64 maxSize);
-SF_EXTERNAL sf_string sf_string_clone(sf_arena *arena, sf_string source);
-SF_EXTERNAL sf_string sf_string_null_terminate(sf_arena *arena, sf_string source);
-SF_EXTERNAL void      sf_assert(sf_bool test, sf_string file, sf_string function, int line, sf_string expresion);
+#define sf_memory_copy(destination, source, size)                                                                                          \
+	do                                                                                                                                 \
+	{                                                                                                                                  \
+		u64 i;                                                                                                                     \
+		for (i = 0; i < count; ++i)                                                                                                \
+			((sf_byte *)destination)[i] = ((sf_byte const *)source)[i];                                                        \
+	} while (0)
+
+#define sf_memoty_set(destination, source, size)                                                                                           \
+	do                                                                                                                                 \
+	{                                                                                                                                  \
+		u64 i;                                                                                                                     \
+		for (i = 0; i < count; ++i)                                                                                                \
+			((sf_byte *)destination)[i] = ((sf_byte)value);                                                                    \
+	} while (0)
+
+sf_public void
+sf_string_from_non_literal(char const *non_literal, u64 max_size, sf_string *str);
+
+sf_public sf_bool
+sf_string_compare(sf_string const *lhs, sf_string const *rhs, u64 max_size);
+
+sf_public void
+sf_string_clone(sf_arena *arena, sf_string const *source, sf_string *destination);
+
+sf_public void
+sf_string_null_terminate(sf_arena *arena, sf_string const *source, sf_string *destination);
+
+sf_public void
+sf_assert(sf_bool test, sf_string file, sf_string function, int line, sf_string expresion);
 
 #ifdef SF_CORE_IMPLEMENTATION
 
 #include <stdio.h>
 
-SF_INTERNAL u64 sf_u64_align(u64 value, u64 alignment) {
-  return (value + alignment - 1) & ~(alignment - 1);
+sf_private u64
+sf_u64_align(u64 value, u64 alignment)
+{ return (value + alignment - 1) & ~(alignment - 1); }
+
+sf_public void *
+sf_arena_allocate(sf_arena *arena, u64 size)
+{
+	sf_byte *memory = NULL;
+	u64	 i = 0, required_size = 0;
+
+	if (!arena || !size)
+		return NULL;
+
+	required_size = arena->position + size;
+	if (required_size > arena->capacity)
+		return NULL;
+
+	memory		= &arena->data[arena->position];
+	arena->position = sf_u64_align(required_size, arena->alignment);
+
+	for (i = 0; i < size; ++i)
+		memory[i] = 0x0;
+
+	return memory;
 }
 
-SF_EXTERNAL void *sf_arena_allocate(sf_arena *arena, u64 size) {
-  sf_byte *memory = NULL;
+sf_public void
+sf_arena_scratch(sf_arena *arena, u64 capacity, sf_arena *scratch)
+{
+	scratch->position = 0;
 
-  if (arena && size) {
-    u64 required_size = arena->position + size;
-
-    if (required_size < arena->capacity) {
-      memory          = &arena->data[arena->position];
-      arena->position = sf_u64_align(required_size, arena->alignment);
-      for (u64 i = 0; i < size; ++i)
-        memory[i] = 0x0;
-    }
-  }
-  return memory;
+	scratch->data = sf_arena_allocate(arena, capacity);
+	if (scratch->data)
+	{
+		scratch->alignment = arena->alignment;
+		scratch->capacity  = capacity;
+	}
+	else
+	{
+		scratch->alignment = 0;
+		scratch->capacity  = 0;
+	}
 }
 
-SF_EXTERNAL sf_arena sf_arena_scratch(sf_arena *arena, u64 capacity) {
-  sf_arena result = {0};
+sf_public void
+sf_arena_clear(sf_arena *arena)
+{ arena->position = 0; }
 
-  result.data = sf_arena_allocate(arena, capacity);
+sf_private u64
+sf_non_literal_string_size(char const *non_literal, u64 max_size)
+{
+	u64 i = 0;
 
-  if (result.data) {
-    result.alignment = arena->alignment;
-    result.capacity  = capacity;
-  }
+	for (i = 0; i < max_size; ++i)
+		if ('\0' == non_literal[i])
+			return i;
 
-  return result;
+	return max_size;
 }
 
-SF_EXTERNAL void sf_arena_clear(sf_arena *arena) {
-  arena->position = 0;
+sf_publlic void
+sf_string_from_non_literal(char const *non_literal, u64 max_size, sf_string *destination)
+{
+	destination->data = non_literal;
+	destination->size = sf_non_literal_string_size(non_literal, max_size);
 }
 
-SF_INTERNAL u64 sf_non_literal_string_size(char const *non_literal, u64 max_size) {
-  u64 size = max_size;
+sf_public sf_bool
+sf_string_compare(sf_string const *lhs, sf_string const *rhs, u64 max_size)
+{
+	u64 i = 0;
 
-  for (u64 i = 0; i < max_size && size != max_size; ++i)
-    if ('\0' == non_literal[i])
-      size = i;
+	if (lhs->size != rhs->size)
+		return SF_FALSE;
 
-  return size;
+	for (i = 0; i < SF_MIN(lhs->size, max_size); ++i)
+		if (lhs.data[i] != rhs.data[i])
+			return SF_FALSE;
+
+	return SF_TRUE;
 }
 
-SF_EXTERNAL sf_string sf_string_from_non_literal(char const *non_literal, u64 max_size) {
-  sf_string result = {0};
+sf_public void
+sf_string_clone(sf_arena *arena, sf_string const *source, sf_string *destination)
+{
+	destination->size = 0;
+	destination->data = sf_arena_allocate(arena, source->size);
 
-  result.data = non_literal;
-  result.size = sf_non_literal_string_size(non_literal, max_size);
-
-  return result;
+	if (destination->data)
+	{
+		destination->size = source.size;
+		sf_memory_copy(destination->data, source->data, destination->size);
+	}
 }
 
-SF_EXTERNAL sf_bool sf_string_compare(sf_string lhs, sf_string rhs, u64 max_size) {
-  sf_bool result = 0;
+sf_public void
+sf_string_null_terminate(sf_arena *arena, sf_string const *source, sf_string *destination)
+{
+	destination->size = 0;
+	destination->data = sf_arena_allocate(arena, source->size + 1);
 
-  if (lhs.size == rhs.size) {
-    for (u64 i = 0; i < SF_MIN(lhs.size, max_size) && !result; ++i)
-      if (lhs.data[i] != rhs.data[i])
-        result = SF_TRUE;
-  }
-
-  return result;
+	if (destination->data)
+	{
+		destination->size = source->size + 1;
+		sf_memory_copy(destination->data, source->data, source->size);
+		destination->data[source->size] = '\0';
+	}
 }
 
-SF_EXTERNAL sf_string sf_string_clone(sf_arena *arena, sf_string source) {
-  sf_string result = {0};
-
-  result.data = sf_arena_allocate(arena, source.size);
-
-  if (result.data) {
-    result.size = source.size;
-    sf_memory_copy(result.data, source.data, result.size);
-  }
-
-  return result;
-}
-
-SF_EXTERNAL sf_string sf_string_null_terminate(sf_arena *arena, sf_string source) {
-  sf_string result = {0};
-
-  result.data = sf_arena_allocate(arena, source.size + 1);
-
-  if (result.data) {
-    result.size = source.size + 1;
-    sf_memory_copy(result.data, source.data, source.size);
-    result.data[source.size] = '\0';
-  }
-
-  return result;
-}
-
-SF_EXTERNAL void sf_assert(sf_bool test, sf_string file, sf_string function, int line, sf_string expression) {
-  if (!test) {
-    fprintf(stderr, "%.*s:%i - %.*s - SF_ASSERT(%.*s)\n", (unsigned int)file.size, file.data, line, (unsigned int)function.size,
-            function.data, (unsigned int)expression.size, expression.data);
-    abort();
-  }
+sf_public void
+sf_assert(sf_bool test, sf_string file, sf_string function, int line, sf_string expression)
+{
+	if (!test)
+	{
+		fprintf(
+		    stderr,
+		    "%.*s:%i - %.*s - SF_ASSERT(%.*s)\n",
+		    (unsigned int)file.size,
+		    file.data,
+		    line,
+		    (unsigned int)function.size,
+		    function.data,
+		    (unsigned int)expression.size,
+		    expression.data
+		);
+		abort();
+	}
 }
 
 #endif // SF_IMPLEMENTATION
