@@ -951,38 +951,38 @@ SF_INTERNAL void sf_graphics_vulkan_create_render_target_framebuffer(sf_graphics
 }
 
 SF_EXTERNAL void sf_graphics_destroy_render_target(sf_graphics_renderer *r, sf_handle handle) {
-  sf_graphics_render_target *renderTarget = sf_graphics_render_target_from_handle(r, handle);
+  sf_graphics_render_target *render_target = sf_graphics_render_target_from_handle(r, handle);
 
-  if (r && renderTarget) {
-    renderTarget->is_occupied = SF_FALSE;
+  if (r && render_target) {
+    render_target->is_occupied = SF_FALSE;
 
     if (r->vk_device) {
-      if (renderTarget->vk_framebuffer) {
-        vkDestroyFramebuffer(r->vk_device, renderTarget->vk_framebuffer, r->vk_allocation_callbacks);
-        renderTarget->vk_framebuffer = VK_NULL_HANDLE;
+      if (render_target->vk_framebuffer) {
+        vkDestroyFramebuffer(r->vk_device, render_target->vk_framebuffer, r->vk_allocation_callbacks);
+        render_target->vk_framebuffer = VK_NULL_HANDLE;
       }
 
-      if (renderTarget->vk_render_pass) {
-        vkDestroyRenderPass(r->vk_device, renderTarget->vk_render_pass, r->vk_allocation_callbacks);
-        renderTarget->vk_render_pass = VK_NULL_HANDLE;
+      if (render_target->vk_render_pass) {
+        vkDestroyRenderPass(r->vk_device, render_target->vk_render_pass, r->vk_allocation_callbacks);
+        render_target->vk_render_pass = VK_NULL_HANDLE;
       }
     }
 
-    for (u32 i = 0; i < renderTarget->color_attachment_count; ++i) {
-      sf_graphics_destroy_texture(r, renderTarget->color_attachments[i]);
-      renderTarget->color_attachments[i] = SF_NULL_HANDLE;
+    for (u32 i = 0; i < render_target->color_attachment_count; ++i) {
+      sf_graphics_destroy_texture(r, render_target->color_attachments[i]);
+      render_target->color_attachments[i] = SF_NULL_HANDLE;
     }
 
-    renderTarget->color_attachment_count = 0;
+    render_target->color_attachment_count = 0;
 
-    for (u32 i = 0; i < renderTarget->resolve_attachment_count; ++i) {
-      sf_graphics_destroy_texture(r, renderTarget->resolve_attachments[i]);
-      renderTarget->resolve_attachments[i] = SF_NULL_HANDLE;
+    for (u32 i = 0; i < render_target->resolve_attachment_count; ++i) {
+      sf_graphics_destroy_texture(r, render_target->resolve_attachments[i]);
+      render_target->resolve_attachments[i] = SF_NULL_HANDLE;
     }
-    renderTarget->resolve_attachment_count = 0;
+    render_target->resolve_attachment_count = 0;
 
-    sf_graphics_destroy_texture(r, renderTarget->depth_stencil_attachment);
-    renderTarget->depth_stencil_attachment = SF_NULL_HANDLE;
+    sf_graphics_destroy_texture(r, render_target->depth_stencil_attachment);
+    render_target->depth_stencil_attachment = SF_NULL_HANDLE;
   }
 }
 
