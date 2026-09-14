@@ -15,6 +15,8 @@
 #define SF_GRAPHICS_MAX_DESCRIPTOR_SET_DESCRIPTOR_COUNT 4
 #define SF_GRAPHICS_MAX_VERTEX_LAYOUT_ATTRIBUTE_COUNT 4
 #define SF_GRAPHICS_MAX_RESOURCE_POOL_COUNT 16
+#define SF_GRAPHICS_MAX_IMAGE_DESCRIPTOR_COUNT 8
+
 
 struct sf_graphics_renderer;
 
@@ -119,7 +121,8 @@ enum sf_graphics_buffer_usage {
 	SF_GRAPHICS_BUFFER_USAGE_INDEX_BUFFER = 0x00000040,
 	SF_GRAPHICS_BUFFER_USAGE_VERTEX_BUFFER = 0x00000080,
 	SF_GRAPHICS_BUFFER_USAGE_INDIRECT_BUFFER = 0x00000100,
-	SF_GRAPHICS_BUFFER_USAGE_SHADER_DEVICE_ADDRESS = 0x00000200
+	SF_GRAPHICS_BUFFER_USAGE_SHADER_DEVICE_ADDRESS = 0x00000200,
+	SF_GRAPHICS_BUFFER_USAGE_DESCRIPTOR_HEAP = 0x00000400,
 };
 typedef u32 sf_graphics_buffer_usage_flags;
 
@@ -128,6 +131,7 @@ enum sf_graphics_memory_property {
 	SF_GRAPHICS_MEMORY_PROPERTY_CPU_VISIBLE = 0x00000002,
 	SF_GRAPHICS_MEMORY_PROPERTY_LAZILY_ALLOCATED = 0x00000004,
 	SF_GRAPHICS_MEMORY_PROPERTY_PROTECTED = 0x0000008,
+	SF_GRAPHICS_MEMORY_PROPERTY_DEVICE_ADDRESS = 0x00000010
 };
 typedef u32 sf_graphics_memory_property_flags;
 
@@ -164,55 +168,19 @@ struct sf_graphics_clear_value {
 	union sf_graphics_clear_value_data data;
 };
 
-struct sf_graphics_descriptor {
-	enum sf_graphics_descriptor_type type;
-	u32 binding;
-	u32 slot;
-	u32 entry_count;
-	sf_handle entries[SF_GRAPHICS_MAX_DESCRIPTOR_ENTRY_COUNT];
-};
-
-struct sf_graphics_descriptor_set_layout {
-	struct sf_graphics_resource_base base;
-	VkDescriptorSetLayout vk_layout;
-	u32 descriptor_count;
-	struct sf_graphics_descriptor descriptors[SF_GRAPHICS_MAX_DESCRIPTOR_SET_DESCRIPTOR_COUNT];
-};
-
-struct sf_graphics_descriptor_set {
-	struct sf_graphics_resource_base base;
-	sf_handle descriptor_set_layout;
-	VkDescriptorPool vk_descriptor_pool;
-	VkDescriptorSet vk_descriptor_set;
-};
-
-struct sf_graphics_vertex_attribute {
-	enum sf_graphics_format format;
-	u32 binding; // FIXME(samuel): currently ignored. Always 0
-	u32 location;
-	u32 offset;
-};
-
-struct sf_graphics_vertex_layout {
-	u32 stride;
-	u32 attribute_count;
-	struct sf_graphics_vertex_attribute attributes[SF_GRAPHICS_MAX_VERTEX_LAYOUT_ATTRIBUTE_COUNT];
-};
-
-struct sf_graphics_pipeline {
-	struct sf_graphics_resource_base base;
-	VkShaderModule vk_vertex_shader;
-	VkShaderModule vk_fragment_shader;
-	VkPipelineLayout vk_pipeline_layout;
-	VkPipeline vk_pipeline;
-};
-
 struct sf_graphics_image {
 	struct sf_graphics_resource_base base;
+	sf_graphics_image_usage_flags usage;
+	enum sf_graphics_format format;
+	enum sf_graphics_sample_count samples;
+	u32 mips;
+	u32 width;
+	u32 height;
 	VkImage vk_image;
 	VkDeviceMemory vk_memory;
 	VkImageView vk_image_view;
 	sf_bool vk_owns_image;
+	VkDescriptorSet vk_descriptor_set;
 };
 
 struct sf_graphics_buffer {
@@ -222,15 +190,26 @@ struct sf_graphics_buffer {
 	u32 size;
 	void *cpu_mapped_data;
 	VkDeviceAddress vk_address;
+	VkDescriptorSet vk_descriptor_set;
 };
 
 struct sf_graphics_command_buffer {
 	struct sf_graphics_resource_base base;
-	enum sf_graphics_command_buffer_usage_flags usage;
+	sf_graphics_command_buffer_usage_flags usage;
 	sf_bool is_recording;
 	sf_bool is_executable;
 	VkCommandPool vk_command_pool;
 	VkCommandBuffer vk_command_buffer;
+};
+
+struct sf_graphics_shader {
+	struct sf_graphics_resource_base base;
+	VkShaderModule vk_shader;
+};
+
+struct sf_graphics_pipeline {
+	struct sf_graphics_resource_base base;
+	VkPipeline vk_pipeline;
 };
 
 struct sf_graphics_render_target {
@@ -239,22 +218,26 @@ struct sf_graphics_render_target {
 	u32 width;
 	u32 height;
 
+	sf_bool will_be_presented;
+	sf_bool owns_color_attachments;
+
 	enum sf_graphics_sample_count samples;
 	enum sf_graphics_format color_format;
-	enum sf_graphics_format depth_format;
+	enum sf_graphics_format depth_stencil_format;
+
+	struct sf_graphics_clear_value color_clear_value;
+	struct sf_graphics_clear_value depth_stencil_clear_value;
 
 	u32 color_attachment_count;
 	sf_handle color_attachments[SF_GRAPHICS_MAX_RENDER_TARGET_ATTACHMENT_COUNT];
 
-	sf_handle depth_stencil_attachment;
-	
-	u32 imgui_attachment_count;
-	sf_handle imgui_attachments[SF_GRAPHICS_MAX_RENDER_TARGET_ATTACHMENT_COUNT];
-};
+	u32 resolve_attachment_count;
+	sf_handle resolve_attachments[SF_GRAPHICS_MAX_RENDER_TARGET_ATTACHMENT_COUNT];
 
-struct sf_graphics_sampler {
-	struct sf_graphics_resource_base base;
-	VkSampler vk_sampler;
+	sf_handle depth_stencil_attachment;
+
+	VkFramebuffer vk_framebuffer;
+	VkRenderPass vk_render_pass;
 };
 
 typedef void (*sf_graphics_renderer_callback)(void *data, struct sf_graphics_renderer *renderer);
@@ -287,7 +270,7 @@ struct sf_graphics_renderer {
 	struct sf_arena arena;
 
 	void *plataform_data;
-	sf_graphics_renderer_callback plataform_create_vulkan_surface;
+	sf_graphics_renderer_callback plataform_vulkan_surface_init;
 	sf_graphics_renderer_callback plataform_request_swapchain_dimensions;
 
 	sf_bool requested_enable_vsync;
@@ -295,6 +278,7 @@ struct sf_graphics_renderer {
 
 	PFN_vkCreateDebugUtilsMessengerEXT vk_create_debug_utils_messenger_ext;
 	PFN_vkDestroyDebugUtilsMessengerEXT vk_destroy_debug_utils_messenger_ext;
+	PFN_vkWriteSamplerDescriptorsEXT vk_write_sampler_descriptors_ext;
 
 	VkInstance vk_instance;
 	VkDebugUtilsMessengerEXT vk_validation_messenger;
@@ -308,7 +292,7 @@ struct sf_graphics_renderer {
 	u32 vk_graphics_queue_family_index;
 	u32 vk_present_queue_family_index;
 
-	VkSurfaceCapabilities2KHR vk_surface_capabilities;
+	VkSurfaceCapabilitiesKHR vk_surface_capabilities;
 
 	struct sf_arena swapchain_arena;
 
@@ -329,58 +313,54 @@ struct sf_graphics_renderer {
 	u32 vk_swapchain_image_count;
 	VkImage vk_swapchain_images[SF_GRAPHICS_MAX_SWAPCHAIN_IMAGE_COUNT];
 
-	u32 vk_swapchain_image_view_count;
-	VkImageView vk_swapchain_image_views[SF_GRAPHICS_MAX_SWAPCHAIN_IMAGE_COUNT];
+	u32 swapchain_attachment_count;
+	sf_handle swapchain_attachments[SF_GRAPHICS_MAX_SWAPCHAIN_IMAGE_COUNT];
 
 	u32 vk_swapchain_draw_complete_semaphore_count;
 	VkSemaphore vk_swapchain_draw_complete_semaphores[SF_GRAPHICS_MAX_SWAPCHAIN_IMAGE_COUNT];
 
-	u32 vk_swapchain_acquire_semaphore_count;
-	VkSemaphore vk_swapchain_acquire_semaphores[SF_GRAPHICS_MAX_FRAMES_IN_FLIGHT_COUNT];
+	u32 vk_swapchain_image_acquired_semaphore_count;
+	VkSemaphore vk_swapchain_image_acquired_semaphores[SF_GRAPHICS_MAX_FRAMES_IN_FLIGHT_COUNT];
+
+	u32 vk_swapchain_in_flight_fence_count;
+	VkFence vk_swapchain_in_flight_fences[SF_GRAPHICS_MAX_FRAMES_IN_FLIGHT_COUNT];
 
 	u32 vk_swapchain_current_image_index;
 	u32 vk_swapchain_current_frame_index;
 
-	sf_bool vk_swapchain_requires_rebuild;
+	sf_bool swapchain_skip_end_frame;
+
+	sf_handle swapchain_render_targets[SF_GRAPHICS_MAX_SWAPCHAIN_IMAGE_COUNT];
+
+	sf_handle main_command_buffers[SF_GRAPHICS_MAX_FRAMES_IN_FLIGHT_COUNT];
+
+	// TODO(samuel): for now just default to this. Later better build a cache
+	VkSampler vk_linear_sampler;
+
+	VkDescriptorPool vk_global_descriptor_pool;
+	
+	// NOTE(samuel): Not a good design. https://vulkan.gpuinfo.org/displaydevicelimit.php?name=maxBoundDescriptorSets&platform=windows max 4 descriptor sets
+	VkDescriptorSetLayout vk_image_descriptor_set_layout;
+	VkDescriptorSetLayout vk_uniform_descriptor_set_layout;
+	VkDescriptorSetLayout vk_dynamic_uniform_descriptor_set_layout;
+
+	VkPipelineLayout vk_general_pipeline_layout;
+
+	sf_handle placeholder_image;
 
 	struct sf_graphics_image image_pool[SF_GRAPHICS_MAX_RESOURCE_POOL_COUNT];
 	struct sf_graphics_buffer buffer_pool[SF_GRAPHICS_MAX_RESOURCE_POOL_COUNT];
 	struct sf_graphics_command_buffer command_buffer_pool[SF_GRAPHICS_MAX_RESOURCE_POOL_COUNT];
-	struct sf_graphics_sampler sampler_pool[SF_GRAPHICS_MAX_RESOURCE_POOL_COUNT];
 	struct sf_graphics_render_target render_target_pool[SF_GRAPHICS_MAX_RESOURCE_POOL_COUNT];
-
-	sf_handle vertex_buffer;
-	sf_handle index_buffer;
-	sf_handle scene_buffer;
-
-	sf_handle default_sampler;
-
-	sf_handle images[2];
-
-	sf_handle imgui_attachment;
-
-	VkShaderEXT vk_vertex_shader;
-	VkShaderEXT vk_fragment_shader_textured;
-	VkShaderEXT vk_fragment_shader_not_textured;
-
-	VkDescriptorPool imgui_descriptor_pool;
-
-	sf_handle sampler_buffer;
-	sf_handle resource_heap_buffer;
-
-	u64 sampler_heap_size;
-	u64 sampler_reserved_offset;
-	u64 sampler_reserved_size;
-
-	u64 resource_heap_size;
-	u64 resource_reserved_offset;
-	u64 resource_reserved_size;
-	
+	struct sf_graphics_pipeline pipeline_pool[SF_GRAPHICS_MAX_RESOURCE_POOL_COUNT];
+	struct sf_graphics_shader shader_pool[SF_GRAPHICS_MAX_RESOURCE_POOL_COUNT];
 };
 
 sf_public struct sf_graphics_renderer *sf_graphics_renderer_init(struct sf_arena *arena, struct sf_graphics_renderer_info *info);
 sf_public void sf_graphics_renderer_deinit(struct sf_graphics_renderer *r);
 
+sf_public sf_handle sf_graphics_image_init_from_file(struct sf_graphics_renderer *r, struct sf_string *path);
+sf_public void sf_graphics_image_deinit(struct sf_graphics_renderer *r, sf_handle image_handle);
 
 sf_public struct sf_graphics_glfw_platform *sf_graphics_glfw_platform_init(struct sf_arena *arena, i32 width, i32 height, struct sf_string const *title);
 

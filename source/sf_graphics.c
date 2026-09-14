@@ -1,5 +1,7 @@
 #include "sf_graphics.h"
 
+#include "sf_image.h"
+
 #include <stdio.h>
 
 #define SF_VULKAN_CHECK(e) sf_graphics_vulkan_check((e), #e, __LINE__, __FILE__)
@@ -112,7 +114,7 @@ sf_private sf_bool sf_graphics_vulkan_is_extension_available(char const *require
 	return SF_FALSE;
 }
 
-sf_private sf_bool sf_graphics_vulkan_are_extensions_available(u32 required_extension_count, char const **required_extensions, u32 available_extension_count, VkExtensionProperties*available_extensions) {
+sf_private sf_bool sf_graphics_vulkan_are_extensions_available(u32 required_extension_count, char const **required_extensions, u32 available_extension_count, VkExtensionProperties *available_extensions) {
 	u32 i = 0;
 
 	for (i = 0; i < required_extension_count; ++i) {
@@ -170,16 +172,11 @@ sf_private sf_bool sf_graphics_vulkan_are_instance_extensions_available(struct s
 }
 
 sf_private sf_bool sf_graphics_vulkan_are_device_extensions_available(struct sf_arena *arena, VkPhysicalDevice device, u32 required_extension_count, char const **required_extensions) {
-	u32 i = 0;
 	struct sf_graphics_vulkan_extension_properties_array available_extensions = {0};
 
 	sf_graphics_vulkan_load_available_device_extensions(arena, device, &available_extensions);
 	if (!available_extensions.size || !available_extensions.data)
 		return SF_FALSE;
-
-	for (i = 0; i < available_extensions.size; ++i) {
-		printf("Available device extension: %s\n", available_extensions.data[i].extensionName);
-	}
 
 	return sf_graphics_vulkan_are_extensions_available(required_extension_count, required_extensions, available_extensions.size, available_extensions.data);
 }
@@ -213,7 +210,7 @@ sf_private void sf_graphics_vulkan_instance_init(struct sf_arena *arena, struct 
 	r->vk_instance = VK_NULL_HANDLE;
 
 	vkEnumerateInstanceVersion(&vk_api_version);
-	if (vk_api_version < VK_MAKE_API_VERSION(0, 1, 4, 340))
+	if (vk_api_version < VK_MAKE_API_VERSION(0, 1, 0, 0))
 		return;
 
 	sf_string_null_terminate(arena, &info->application_name, &null_terminated_app_name);
@@ -229,7 +226,7 @@ sf_private void sf_graphics_vulkan_instance_init(struct sf_arena *arena, struct 
 	app_info.applicationVersion = VK_MAKE_VERSION(1, 0, 0);
 	app_info.pEngineName = "sf";
 	app_info.engineVersion = 1;
-	app_info.apiVersion = vk_api_version;
+	app_info.apiVersion = VK_API_VERSION_1_0;
 
 	instance_info.sType = VK_STRUCTURE_TYPE_INSTANCE_CREATE_INFO;
 	instance_info.pNext = NULL;
@@ -260,7 +257,6 @@ sf_private void sf_graphics_vulkan_validation_messenger_init(struct sf_graphics_
 
 	r->vk_validation_messenger = VK_NULL_HANDLE;
 
-	sf_graphics_vulkan_load_functions(r);
 	if (!r->vk_create_debug_utils_messenger_ext || !r->vk_destroy_debug_utils_messenger_ext)
 		return;
 
@@ -336,35 +332,23 @@ sf_private void sf_graphics_vulkan_find_suitable_queue_family_indices(struct sf_
 
 struct sf_graphics_vulkan_surface_format_array {
 	u32 size;
-	VkSurfaceFormat2KHR *data;
+	VkSurfaceFormatKHR *data;
 };
 
 sf_private void sf_graphics_vulkan_load_surface_formats(struct sf_arena *arena, VkPhysicalDevice device, VkSurfaceKHR surface, struct sf_graphics_vulkan_surface_format_array *array) {
-	u32 i = 0;
 	u32 count = 0;
-
-	VkPhysicalDeviceSurfaceInfo2KHR surface_info = {0};
 
 	if (!arena || !device || !surface)
 		return;
 
-	 surface_info.sType = VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_SURFACE_INFO_2_KHR;
-	 surface_info.pNext = NULL;
-	 surface_info.surface = surface;
-
-	if (!SF_VULKAN_CHECK(vkGetPhysicalDeviceSurfaceFormats2KHR(device, &surface_info, &count, NULL)))
+	if (!SF_VULKAN_CHECK(vkGetPhysicalDeviceSurfaceFormatsKHR(device, surface, &count, NULL)))
 		return;
 
 	array->data = sf_arena_allocate(arena, count * sizeof(*array->data));
 	if (!array->data)
 		return;
 
-	for (i = 0; i < count; ++i) {
-		array->data[i].sType = VK_STRUCTURE_TYPE_SURFACE_FORMAT_2_KHR;
-		array->data[i].pNext = NULL;
-	}
-
-	if (!SF_VULKAN_CHECK(vkGetPhysicalDeviceSurfaceFormats2KHR(device, &surface_info, &count, array->data)))
+	if (!SF_VULKAN_CHECK(vkGetPhysicalDeviceSurfaceFormatsKHR(device, surface, &count, array->data)))
 		return;
 
 	array->size = count;
@@ -430,39 +414,32 @@ sf_private VkFormat sf_graphics_vulkan_find_format(VkPhysicalDevice device, u32 
 		return VK_FORMAT_UNDEFINED;
 
 	for (i = 0; i < available_format_count; ++i) {
-		VkFormatProperties2 properties = {0};
+		VkFormatProperties properties = {0};
 		VkFormat format = available_formats[i];
 
-		properties.sType = VK_STRUCTURE_TYPE_FORMAT_PROPERTIES_2;
-		properties.pNext = NULL;
+		vkGetPhysicalDeviceFormatProperties(device, format, &properties);
 
-		vkGetPhysicalDeviceFormatProperties2(device, format, &properties);
-
-		if (tiling == VK_IMAGE_TILING_LINEAR && (properties.formatProperties.linearTilingFeatures & features) == features)
+		if (tiling == VK_IMAGE_TILING_LINEAR && (properties.linearTilingFeatures & features) == features)
 			return format;
 
-		if (tiling == VK_IMAGE_TILING_OPTIMAL && (properties.formatProperties.optimalTilingFeatures & features) == features)
+		if (tiling == VK_IMAGE_TILING_OPTIMAL && (properties.optimalTilingFeatures & features) == features)
 			return format;
 	}
 
 	return VK_FORMAT_UNDEFINED;
 }
 
-sf_private void sf_graphics_vulkan_find_supported_color_format(struct sf_arena *arena, VkPhysicalDevice device, VkSurfaceKHR surface, VkSurfaceFormat2KHR *format) {
+sf_private void sf_graphics_vulkan_find_supported_color_format(struct sf_arena *arena, VkPhysicalDevice device, VkSurfaceKHR surface, VkSurfaceFormatKHR *format) {
 	u32 i = 0;
-	VkSurfaceFormat2KHR requested_format = {0};
-	VkSurfaceFormat2KHR default_format = {0};
+	VkSurfaceFormatKHR requested_format = {0};
+	VkSurfaceFormatKHR default_format = {0};
 	struct sf_graphics_vulkan_surface_format_array candidates = {0};
 
-	requested_format.sType = VK_STRUCTURE_TYPE_SURFACE_FORMAT_2_KHR;
-	requested_format.pNext = NULL;
-	requested_format.surfaceFormat.format = VK_FORMAT_R8G8B8A8_UNORM;
-	requested_format.surfaceFormat.colorSpace = VK_COLOR_SPACE_SRGB_NONLINEAR_KHR;
+	requested_format.format = VK_FORMAT_R8G8B8A8_UNORM;
+	requested_format.colorSpace = VK_COLOR_SPACE_SRGB_NONLINEAR_KHR;
 
-	default_format.sType = VK_STRUCTURE_TYPE_SURFACE_FORMAT_2_KHR;
-	default_format.pNext = NULL;
-	default_format.surfaceFormat.format = VK_FORMAT_B8G8R8A8_UNORM;
-	default_format.surfaceFormat.colorSpace = VK_COLOR_SPACE_SRGB_NONLINEAR_KHR;
+	default_format.format = VK_FORMAT_B8G8R8A8_UNORM;
+	default_format.colorSpace = VK_COLOR_SPACE_SRGB_NONLINEAR_KHR;
 
 	*format = default_format;
 
@@ -474,9 +451,9 @@ sf_private void sf_graphics_vulkan_find_supported_color_format(struct sf_arena *
 		return;
 
 	for (i = 0; i < candidates.size; ++i) {
-		VkSurfaceFormat2KHR *current = &candidates.data[i];
+		VkSurfaceFormatKHR *current = &candidates.data[i];
 
-		if (current->surfaceFormat.format == requested_format.surfaceFormat.format && current->surfaceFormat.colorSpace == requested_format.surfaceFormat.colorSpace) {
+		if (current->format == requested_format.format && current->colorSpace == requested_format.colorSpace) {
 			*format = *current;
 			return;
 		}
@@ -527,13 +504,11 @@ sf_private void sf_graphics_vulkan_find_suitable_physical_device(struct sf_arena
 		u32 graphics_queue_family_index = (u32)-1;
 		u32 present_queue_family_index = (u32)-1;
 
-		VkPhysicalDeviceProperties2 properties2 = {0};
+		VkPhysicalDeviceProperties properties = {0};
 		VkPhysicalDeviceFeatures features = {0};
 		VkPhysicalDevice device = physical_devices.data[i];
 
-		properties2.sType = VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_PROPERTIES_2;
-
-		vkGetPhysicalDeviceProperties2(device, &properties2);
+		vkGetPhysicalDeviceProperties(device, &properties);
 		vkGetPhysicalDeviceFeatures(device, &features);
 
 		sf_graphics_vulkan_find_suitable_queue_family_indices(arena, device, r->vk_surface, &graphics_queue_family_index, &present_queue_family_index);
@@ -543,7 +518,7 @@ sf_private void sf_graphics_vulkan_find_suitable_physical_device(struct sf_arena
 		if (!sf_graphics_vulkan_are_device_extensions_available(arena, device, info->vk_device_extension_count, info->vk_device_extensions))
 			continue;
 
-		if (properties2.properties.deviceType == VK_PHYSICAL_DEVICE_TYPE_DISCRETE_GPU) {
+		if (properties.deviceType == VK_PHYSICAL_DEVICE_TYPE_DISCRETE_GPU) {
 			r->vk_physical_device = device;
 			goto finish_physical_device_setup;
 		} else {
@@ -559,12 +534,7 @@ finish_physical_device_setup:
 }
 
 sf_private void sf_graphics_vulkan_device_init(struct sf_graphics_renderer *r, struct sf_graphics_renderer_info *info) {
-	VkPhysicalDeviceFeatures2 features = {0};
-	VkPhysicalDeviceVulkan11Features features_1_1 = {0};
-	VkPhysicalDeviceVulkan12Features features_1_2 = {0};
-	VkPhysicalDeviceVulkan13Features features_1_3 = {0};
-	VkPhysicalDeviceVulkan14Features features_1_4 = {0};
-
+	VkPhysicalDeviceFeatures features = {0};
 	float priority = 1.0F;
 	VkDeviceQueueCreateInfo queue_infos[2] = {0};
 	VkDeviceCreateInfo device_info = {0};
@@ -574,37 +544,7 @@ sf_private void sf_graphics_vulkan_device_init(struct sf_graphics_renderer *r, s
 
 	r->vk_device = VK_NULL_HANDLE;
 
-	features.sType = VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_FEATURES_2;
-	features.pNext = &features_1_1;
-
-	features_1_1.sType = VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_VULKAN_1_1_FEATURES;
-	features_1_1.pNext = &features_1_2;
-
-	features_1_2.sType = VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_VULKAN_1_2_FEATURES;
-	features_1_2.pNext = &features_1_3;
-
-	features_1_3.sType = VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_VULKAN_1_3_FEATURES;
-	features_1_3.pNext = &features_1_4;
-
-	features_1_4.sType = VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_VULKAN_1_4_FEATURES;
-	features_1_4.pNext = NULL;
-
-	vkGetPhysicalDeviceFeatures2(r->vk_physical_device, &features);
-
-	if (!features_1_2.timelineSemaphore)
-		return;
-
-	if (!features_1_2.bufferDeviceAddress)
-		return;
-
-	if (!features_1_3.synchronization2)
-		return;
-
-	if (!features_1_3.dynamicRendering)
-		return;
-
-	if (!features_1_4.maintenance6)
-		return;
+	vkGetPhysicalDeviceFeatures(r->vk_physical_device, &features);
 
 	queue_infos[0].sType = VK_STRUCTURE_TYPE_DEVICE_QUEUE_CREATE_INFO;
 	queue_infos[0].pNext = NULL;
@@ -621,7 +561,7 @@ sf_private void sf_graphics_vulkan_device_init(struct sf_graphics_renderer *r, s
 	queue_infos[1].pQueuePriorities = &priority;
 
 	device_info.sType = VK_STRUCTURE_TYPE_DEVICE_CREATE_INFO;
-	device_info.pNext = &features;
+	device_info.pNext = NULL;
 	device_info.flags = 0;
 	if (r->vk_graphics_queue_family_index == r->vk_present_queue_family_index)
 		device_info.queueCreateInfoCount = 1;
@@ -632,7 +572,7 @@ sf_private void sf_graphics_vulkan_device_init(struct sf_graphics_renderer *r, s
 	device_info.ppEnabledLayerNames = NULL; // NOTE(samuel): deprecated
 	device_info.enabledExtensionCount = info->vk_device_extension_count;
 	device_info.ppEnabledExtensionNames = info->vk_device_extensions;
-	device_info.pEnabledFeatures = NULL; // NOTE(samuel): legacy;
+	device_info.pEnabledFeatures = &features; // NOTE(samuel): legacy, but we are still using version 1.0.0;
 
 	if (!SF_VULKAN_CHECK(vkCreateDevice(r->vk_physical_device, &device_info, r->vk_allocation_callbacks, &r->vk_device)))
 		r->vk_device = VK_NULL_HANDLE;
@@ -641,299 +581,6 @@ sf_private void sf_graphics_vulkan_device_init(struct sf_graphics_renderer *r, s
 sf_private void sf_graphics_vulkan_load_device_queues(struct sf_graphics_renderer *r) {
 	vkGetDeviceQueue(r->vk_device, r->vk_graphics_queue_family_index, 0, &r->vk_graphics_queue);
 	vkGetDeviceQueue(r->vk_device, r->vk_present_queue_family_index, 0, &r->vk_present_queue);
-}
-
-sf_private void sf_graphics_vulkan_swapchain_init(struct sf_graphics_renderer *r) {
-	VkSwapchainCreateInfoKHR info = {0};
-	u32 queue_family_indices[2] = {r->vk_graphics_queue_family_index, r->vk_present_queue_family_index};
-
-	// NOTE(samuel): No vk_swapchain reuse
-	if (!r || !r->vk_device || !r->vk_surface || !r->vk_physical_device || r->vk_swapchain)
-		return;
-
-	info.sType = VK_STRUCTURE_TYPE_SWAPCHAIN_CREATE_INFO_KHR;
-	info.pNext = NULL;
-	info.flags = 0;
-	info.surface = r->vk_surface;
-	info.minImageCount = r->vk_swapchain_requested_image_count;
-	info.imageFormat = r->vk_swapchain_color_format;
-	info.imageColorSpace = r->vk_swapchain_color_space;
-	info.imageExtent.width = r->vk_swapchain_width;
-	info.imageExtent.height = r->vk_swapchain_height;
-	info.imageArrayLayers = 1;
-	info.imageUsage = VK_IMAGE_USAGE_COLOR_ATTACHMENT_BIT | VK_IMAGE_USAGE_TRANSFER_DST_BIT;
-	if (r->vk_graphics_queue_family_index == r->vk_present_queue_family_index) {
-		info.imageSharingMode = VK_SHARING_MODE_EXCLUSIVE;
-		info.queueFamilyIndexCount = 1;
-		info.pQueueFamilyIndices = queue_family_indices;
-	} else {
-		info.imageSharingMode = VK_SHARING_MODE_CONCURRENT;
-		info.queueFamilyIndexCount = SF_SIZE(queue_family_indices);
-		info.pQueueFamilyIndices = queue_family_indices;
-	}
-	info.preTransform = r->vk_surface_capabilities.surfaceCapabilities.currentTransform;
-	info.compositeAlpha = VK_COMPOSITE_ALPHA_OPAQUE_BIT_KHR;
-	info.presentMode = r->vk_swapchain_present_mode;
-	info.clipped = VK_TRUE;
-	info.oldSwapchain = VK_NULL_HANDLE;
-
-	if (!SF_VULKAN_CHECK(vkCreateSwapchainKHR(r->vk_device, &info, r->vk_allocation_callbacks, &r->vk_swapchain)))
-		r->vk_swapchain = VK_NULL_HANDLE;
-}
-
-sf_private void sf_graphics_vulkan_swapchain_load_images(struct sf_graphics_renderer *r) {
-	u32 image_count = 0;
-
-	if (!r || !r->vk_swapchain)
-		return;
-
-	if (!SF_VULKAN_CHECK(vkGetSwapchainImagesKHR(r->vk_device, r->vk_swapchain, &image_count, NULL)))
-		return;
-
-	if (image_count > SF_SIZE(r->vk_swapchain_images))
-		return;
-
-	if (!SF_VULKAN_CHECK(vkGetSwapchainImagesKHR(r->vk_device, r->vk_swapchain, &image_count, r->vk_swapchain_images)))
-		return;
-
-	r->vk_swapchain_image_count = image_count;
-}
-
-sf_private void sf_graphics_vulkan_swapchain_find_color_format(struct sf_arena *arena, struct sf_graphics_renderer *r) {
-	u32 i = 0;
-	VkSurfaceFormat2KHR requested_format = {0};
-	struct sf_graphics_vulkan_surface_format_array candidates = {0};
-
-	requested_format.sType = VK_STRUCTURE_TYPE_SURFACE_FORMAT_2_KHR;
-	requested_format.pNext = NULL;
-	requested_format.surfaceFormat.format = VK_FORMAT_R8G8B8A8_UNORM;
-	requested_format.surfaceFormat.colorSpace = VK_COLOR_SPACE_SRGB_NONLINEAR_KHR;
-
-	if (!arena || !r || !r->vk_physical_device || !r->vk_surface)
-		return;
-
-	r->vk_swapchain_color_format = VK_FORMAT_UNDEFINED;
-	r->vk_swapchain_color_space = VK_COLOR_SPACE_SRGB_NONLINEAR_KHR;
-
-	sf_graphics_vulkan_load_surface_formats(arena, r->vk_physical_device, r->vk_surface, &candidates);
-	if (!candidates.size || !candidates.data)
-		return;
-
-	for (i = 0; i < candidates.size; ++i) {
-		VkSurfaceFormat2KHR *current = &candidates.data[i];
-
-		if (current->surfaceFormat.format == requested_format.surfaceFormat.format && current->surfaceFormat.colorSpace == requested_format.surfaceFormat.colorSpace) {
-			r->vk_swapchain_color_format = current->surfaceFormat.format;
-			r->vk_swapchain_color_space = current->surfaceFormat.colorSpace;
-			return;
-		}
-	}
-}
-
-sf_private void sf_graphics_vulkan_swapchain_find_depth_stencil_format(struct sf_graphics_renderer *r) {
-	VkFormat candidates[] = {VK_FORMAT_D32_SFLOAT_S8_UINT, VK_FORMAT_D32_SFLOAT, VK_FORMAT_D24_UNORM_S8_UINT, VK_FORMAT_D16_UNORM_S8_UINT, VK_FORMAT_D16_UNORM};
-
-	if (!r)
-		return;
-
-	r->vk_swapchain_depth_stencil_format = VK_FORMAT_UNDEFINED;
-
-	if (!r->vk_physical_device)
-		return;
-
-	r->vk_swapchain_depth_stencil_format = sf_graphics_vulkan_find_format(r->vk_physical_device, SF_SIZE(candidates), candidates, VK_IMAGE_TILING_OPTIMAL, VK_FORMAT_FEATURE_DEPTH_STENCIL_ATTACHMENT_BIT);
-}
-
-sf_private void sf_graphics_vulkan_swapchain_resources_deinit(struct sf_graphics_renderer *r) {
-	u32 i = 0;
-
-	if (!r)
-		return;
-
-	for (i = 0; i < SF_SIZE(r->vk_swapchain_acquire_semaphores); ++i) {
-		VkSemaphore semaphore = r->vk_swapchain_acquire_semaphores[i];
-
-		if (!semaphore)
-			continue;
-
-		vkDestroySemaphore(r->vk_device, semaphore, r->vk_allocation_callbacks);
-		r->vk_swapchain_acquire_semaphores[i] = VK_NULL_HANDLE;
-	}
-	r->vk_swapchain_acquire_semaphore_count = 0;
-
-	for (i = 0; i < SF_SIZE(r->vk_swapchain_draw_complete_semaphores); ++i) {
-		VkSemaphore semaphore = r->vk_swapchain_draw_complete_semaphores[i];
-
-		if (!semaphore)
-			continue;
-
-		vkDestroySemaphore(r->vk_device, semaphore, r->vk_allocation_callbacks);
-		r->vk_swapchain_draw_complete_semaphores[i] = VK_NULL_HANDLE;
-	}
-	r->vk_swapchain_draw_complete_semaphore_count = 0;
-
-	for (i = 0; i < SF_SIZE(r->vk_swapchain_image_views); ++i) {
-		VkImageView image_view = r->vk_swapchain_image_views[i];
-
-		if (!image_view)
-			continue;
-
-		vkDestroyImageView(r->vk_device, image_view, r->vk_allocation_callbacks);
-		r->vk_swapchain_image_views[i] = VK_NULL_HANDLE;
-	}
-	r->vk_swapchain_image_view_count = 0;
-
-	SF_ARRAY_INIT(r->vk_swapchain_images, VK_NULL_HANDLE);
-	r->vk_swapchain_image_view_count = 0;
-
-	r->vk_swapchain_image_count = 0;
-
-	if (r->vk_device) {
-		if (r->vk_swapchain) {
-			vkDestroySwapchainKHR(r->vk_device, r->vk_swapchain, r->vk_allocation_callbacks);
-			r->vk_swapchain = VK_NULL_HANDLE;
-		}
-	}
-}
-
-sf_private void sf_graphics_vulkan_swapchain_find_surface_capabilities(struct sf_graphics_renderer *r) {
-	u32 min_image_count = 0;
-	u32 max_image_count = 0;
-	u32 req_image_count = 3;
-
-	VkPhysicalDeviceSurfaceInfo2KHR surface_info = {0};
-
-	if (!r || !r->vk_physical_device || !r->vk_surface)
-		return;
-
-
-	surface_info.sType = VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_SURFACE_INFO_2_KHR;
-	surface_info.pNext = NULL;
-	surface_info.surface = r->vk_surface;
-
-	r->vk_swapchain_requested_frames = 3; // TODO(samuel): Set from info or somewhere else
-
-	r->vk_swapchain_width = 0;
-	r->vk_swapchain_height = 0;
-
-	r->vk_swapchain_min_image_count = 0;
-	r->vk_swapchain_max_image_count = 0;
-	r->vk_swapchain_requested_image_count = 0;
-
-	r->vk_surface_capabilities.sType = VK_STRUCTURE_TYPE_SURFACE_CAPABILITIES_2_KHR;
-
-	if (!SF_VULKAN_CHECK(vkGetPhysicalDeviceSurfaceCapabilities2KHR(r->vk_physical_device, &surface_info, &r->vk_surface_capabilities)))
-		return;
-
-	r->vk_swapchain_width = r->vk_surface_capabilities.surfaceCapabilities.currentExtent.width;
-	r->vk_swapchain_height = r->vk_surface_capabilities.surfaceCapabilities.currentExtent.height;
-
-	min_image_count = r->vk_surface_capabilities.surfaceCapabilities.minImageCount;
-	max_image_count = r->vk_surface_capabilities.surfaceCapabilities.maxImageCount;
-
-	r->vk_swapchain_min_image_count = min_image_count;
-	r->vk_swapchain_max_image_count = max_image_count ? SF_MIN(max_image_count, SF_GRAPHICS_MAX_SWAPCHAIN_IMAGE_COUNT) : SF_GRAPHICS_MAX_SWAPCHAIN_IMAGE_COUNT;
-	r->vk_swapchain_requested_image_count = SF_CLAMP(req_image_count, r->vk_swapchain_min_image_count, r->vk_swapchain_max_image_count);
-}
-
-sf_private void sf_graphics_vulkan_swapchain_image_views_init(struct sf_graphics_renderer *r) {
-	u32 i = 0;
-	VkImageViewCreateInfo info = {0};
-
-	if (!r || !r->vk_device)
-		return;
-
-	r->vk_swapchain_image_view_count = 0;
-
-	for (i = 0; i < r->vk_swapchain_image_count; ++i) {
-		info.sType = VK_STRUCTURE_TYPE_IMAGE_VIEW_CREATE_INFO;
-		info.pNext = NULL;
-		info.flags = 0;
-		info.image = r->vk_swapchain_images[i];
-		info.viewType = VK_IMAGE_VIEW_TYPE_2D;
-		info.format = r->vk_swapchain_color_format;
-		info.components.r = VK_COMPONENT_SWIZZLE_IDENTITY;
-		info.components.g = VK_COMPONENT_SWIZZLE_IDENTITY;
-		info.components.b = VK_COMPONENT_SWIZZLE_IDENTITY;
-		info.components.a = VK_COMPONENT_SWIZZLE_IDENTITY;
-		info.subresourceRange.aspectMask = VK_IMAGE_ASPECT_COLOR_BIT;
-		info.subresourceRange.baseMipLevel = 0;
-		info.subresourceRange.levelCount = 1;
-		info.subresourceRange.baseArrayLayer = 0;
-		info.subresourceRange.layerCount = 1;
-
-		if (!SF_VULKAN_CHECK(vkCreateImageView(r->vk_device, &info, r->vk_allocation_callbacks, &r->vk_swapchain_image_views[i]))) {
-			r->vk_swapchain_image_views[i] = VK_NULL_HANDLE;
-			return;
-		}
-	}
-
-	r->vk_swapchain_image_view_count = r->vk_swapchain_image_count;
-}
-
-sf_private void sf_graphics_vulkan_swapchain_draw_complete_semaphores_init(struct sf_graphics_renderer *r) {
-	u32 i = 0;
-	VkSemaphoreCreateInfo info = {0};
-
-	for (i = 0; i < r->vk_swapchain_image_count; ++i) {
-		info.sType = VK_STRUCTURE_TYPE_SEMAPHORE_CREATE_INFO;
-		info.pNext = NULL;
-		info.flags = 0;
-
-		if (!SF_VULKAN_CHECK(vkCreateSemaphore(r->vk_device, &info, r->vk_allocation_callbacks, &r->vk_swapchain_draw_complete_semaphores[i]))) {
-			r->vk_swapchain_draw_complete_semaphores[i] = VK_NULL_HANDLE;
-			return;
-		}
-	}
-
-	r->vk_swapchain_draw_complete_semaphore_count = r->vk_swapchain_image_count;
-}
-
-sf_private void sf_graphics_vulkan_swapchain_acquire_semaphores_init(struct sf_graphics_renderer *r) {
-	u32 i = 0;
-	VkSemaphoreCreateInfo info = {0};
-
-	for (i = 0; i < r->vk_swapchain_requested_frames; ++i) {
-		info.sType = VK_STRUCTURE_TYPE_SEMAPHORE_CREATE_INFO;
-		info.pNext = NULL;
-		info.flags = 0;
-
-		if (!SF_VULKAN_CHECK(vkCreateSemaphore(r->vk_device, &info, r->vk_allocation_callbacks, &r->vk_swapchain_acquire_semaphores[i]))) {
-			r->vk_swapchain_acquire_semaphores[i] = VK_NULL_HANDLE;
-			return;
-		}
-	}
-
-	r->vk_swapchain_acquire_semaphore_count = r->vk_swapchain_image_count;
-}
-
-sf_private void sf_graphics_vulkan_swapchain_resources_init(struct sf_arena *arena, struct sf_graphics_renderer *r) {
-	if (!arena || !r || !r->vk_physical_device || !r->vk_surface || !r->vk_device)
-		return;
-
-	r->vk_swapchain = VK_NULL_HANDLE;
-
-	sf_graphics_vulkan_swapchain_find_color_format(arena, r);
-	sf_graphics_vulkan_swapchain_find_depth_stencil_format(r);
-	sf_graphics_vulkan_swapchain_find_present_mode(arena, r);
-	sf_graphics_vulkan_swapchain_find_surface_capabilities(r);
-
-	sf_graphics_vulkan_swapchain_init(r);
-	if (!r->vk_swapchain)
-		goto error;
-
-	sf_graphics_vulkan_swapchain_load_images(r);
-	if (!r->vk_swapchain_image_count)
-		goto error;
-
-	sf_graphics_vulkan_swapchain_image_views_init(r);
-	if (!r->vk_swapchain_image_view_count)
-		goto error;
-
-	return;
-
-error:
-	sf_graphics_vulkan_swapchain_resources_deinit(r);
 }
 
 sf_private struct sf_graphics_image *sf_graphics_get_image_from_pool(struct sf_graphics_renderer *r) {
@@ -951,6 +598,7 @@ sf_private struct sf_graphics_image *sf_graphics_get_image_from_pool(struct sf_g
 
 	return NULL;
 }
+
 
 sf_private sf_handle sf_graphics_handle_from_image(struct sf_graphics_renderer *r, struct sf_graphics_image *image) {
 	if (!image)
@@ -1069,20 +717,46 @@ sf_private u32 sf_graphics_vulkan_find_memory_type_index(VkPhysicalDevice device
 	return (u32)-1;
 }
 
-sf_private VkDeviceMemory sf_graphics_vulkan_allocate_memory(struct sf_graphics_renderer *r, VkMemoryPropertyFlags memory_properties, u32 filter, u64 size) {
+sf_private VkMemoryPropertyFlags sf_graphics_vulkan_memory_property_flags_from_memory_property_flags(sf_graphics_memory_property_flags flags) {
+	VkMemoryPropertyFlags result = 0;
+
+	if (flags & SF_GRAPHICS_MEMORY_PROPERTY_DEVICE_LOCAL)
+		result |= VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT;
+
+	if (flags & SF_GRAPHICS_MEMORY_PROPERTY_CPU_VISIBLE) {
+		result |= VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT;
+		result |= VK_MEMORY_PROPERTY_HOST_COHERENT_BIT;
+	}
+
+	if (flags & SF_GRAPHICS_MEMORY_PROPERTY_LAZILY_ALLOCATED)
+		result |= VK_MEMORY_PROPERTY_LAZILY_ALLOCATED_BIT;
+
+	if (flags & SF_GRAPHICS_MEMORY_PROPERTY_PROTECTED)
+		result |= VK_MEMORY_PROPERTY_PROTECTED_BIT;
+
+	return result;
+}
+
+sf_private VkDeviceMemory sf_graphics_vulkan_allocate_memory(struct sf_graphics_renderer *r, sf_graphics_memory_property_flags memory_properties, u32 filter, u64 size) {
 	u32 memory_type_index = (u32)-1;
 	VkDeviceMemory memory = VK_NULL_HANDLE;
 	VkMemoryAllocateInfo info = {0};
+	VkMemoryAllocateFlagsInfo flags_info = {0};
 
 	if (!r || !r->vk_physical_device || !r->vk_device || !size)
 		return VK_NULL_HANDLE;
 
-	memory_type_index = sf_graphics_vulkan_find_memory_type_index(r->vk_physical_device, memory_properties, filter);
+	memory_type_index = sf_graphics_vulkan_find_memory_type_index(r->vk_physical_device, sf_graphics_vulkan_memory_property_flags_from_memory_property_flags(memory_properties), filter);
 	if (memory_type_index == (u32)-1)
 		return VK_NULL_HANDLE;
 
+	flags_info.sType = VK_STRUCTURE_TYPE_MEMORY_ALLOCATE_FLAGS_INFO;
+	flags_info.pNext = NULL;
+	flags_info.flags = memory_properties & SF_GRAPHICS_MEMORY_PROPERTY_DEVICE_ADDRESS ? VK_MEMORY_ALLOCATE_DEVICE_ADDRESS_BIT : 0;
+	flags_info.deviceMask = 0;
+
 	info.sType = VK_STRUCTURE_TYPE_MEMORY_ALLOCATE_INFO;
-	info.pNext = NULL;
+	info.pNext = &flags_info;
 	info.allocationSize = size;
 	info.memoryTypeIndex = memory_type_index;
 	if (SF_VULKAN_CHECK(vkAllocateMemory(r->vk_device, &info, r->vk_allocation_callbacks, &memory)))
@@ -1111,7 +785,7 @@ sf_private VkDeviceMemory sf_graphics_vulkan_allocate_memory_for_image(struct sf
 	return memory;
 }
 
-sf_private VkDeviceMemory sf_graphics_vulkan_allocate_memory_for_buffer(struct sf_graphics_renderer *r, VkBuffer buffer, VkMemoryPropertyFlags memory_flags) {
+sf_private VkDeviceMemory sf_graphics_vulkan_allocate_memory_for_buffer(struct sf_graphics_renderer *r, VkBuffer buffer, sf_graphics_memory_property_flags memory_flags) {
 	VkDeviceMemory memory = VK_NULL_HANDLE;
 	VkMemoryRequirements requirements = {0};
 
@@ -1164,6 +838,9 @@ sf_private VkBufferUsageFlags sf_graphics_vulkan_buffer_usage_flags_from_buffer_
 	if (flags & SF_GRAPHICS_BUFFER_USAGE_SHADER_DEVICE_ADDRESS)
 		result |= VK_BUFFER_USAGE_SHADER_DEVICE_ADDRESS_BIT;
 
+	if (flags & SF_GRAPHICS_BUFFER_USAGE_DESCRIPTOR_HEAP)
+		result |= VK_BUFFER_USAGE_RESOURCE_DESCRIPTOR_BUFFER_BIT_EXT;
+
 	return result;
 }
 
@@ -1200,26 +877,6 @@ sf_private VkDeviceSize sf_graphics_vulkan_get_buffer_device_address(struct sf_g
 	return vkGetBufferDeviceAddress(r->vk_device, &info);
 }
 
-sf_private VkMemoryPropertyFlags sf_graphics_vulkan_memory_property_flags_from_memory_property_flags(sf_graphics_memory_property_flags flags) {
-	VkMemoryPropertyFlags result = 0;
-
-	if (flags & SF_GRAPHICS_MEMORY_PROPERTY_DEVICE_LOCAL)
-		result |= VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT;
-
-	if (flags & SF_GRAPHICS_MEMORY_PROPERTY_CPU_VISIBLE) {
-		result |= VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT;
-		result |= VK_MEMORY_PROPERTY_HOST_COHERENT_BIT;
-	}
-
-	if (flags & SF_GRAPHICS_MEMORY_PROPERTY_LAZILY_ALLOCATED)
-		result |= VK_MEMORY_PROPERTY_LAZILY_ALLOCATED_BIT;
-
-	if (flags & SF_GRAPHICS_MEMORY_PROPERTY_PROTECTED)
-		result |= VK_MEMORY_PROPERTY_PROTECTED_BIT;
-
-	return result;
-}
-
 sf_private void sf_graphics_vulkan_buffer_deinit(struct sf_graphics_renderer *r, struct sf_graphics_buffer *buffer) {
 	if (!r || !buffer)
 		return;
@@ -1228,6 +885,12 @@ sf_private void sf_graphics_vulkan_buffer_deinit(struct sf_graphics_renderer *r,
 	buffer->cpu_mapped_data = NULL;
 
 	if (r->vk_device) {
+		if (r->vk_global_descriptor_pool) {
+			if (buffer->vk_descriptor_set) {
+				vkFreeDescriptorSets(r->vk_device, r->vk_global_descriptor_pool, 1, &buffer->vk_descriptor_set);
+				buffer->vk_descriptor_set = VK_NULL_HANDLE;
+			}
+		}
 
 		if (buffer->vk_memory) {
 			vkFreeMemory(r->vk_device, buffer->vk_memory, r->vk_allocation_callbacks);
@@ -1240,6 +903,44 @@ sf_private void sf_graphics_vulkan_buffer_deinit(struct sf_graphics_renderer *r,
 		}
 	}
 }
+
+
+sf_private VkDescriptorSet sf_graphics_vulkan_buffer_descriptor_set_create_and_write(struct sf_graphics_renderer *r, enum sf_graphics_buffer_usage usage, VkBuffer vk_buffer) {
+	VkWriteDescriptorSet write = {0};
+	VkDescriptorBufferInfo buffer_info = {0};
+	VkDescriptorSetAllocateInfo info = {0};
+	VkDescriptorSet descriptor_set = VK_NULL_HANDLE;
+
+	if (!(usage & SF_GRAPHICS_BUFFER_USAGE_UNIFORM_BUFFER))
+		return VK_NULL_HANDLE;
+
+	info.sType = VK_STRUCTURE_TYPE_DESCRIPTOR_SET_ALLOCATE_INFO;
+	info.pNext = NULL;
+	info.descriptorPool = r->vk_global_descriptor_pool;
+	info.descriptorSetCount = 1;
+	info.pSetLayouts = usage & SF_GRAPHICS_BUFFER_USAGE_UNIFORM_BUFFER ? &r->vk_dynamic_uniform_descriptor_set_layout : &r->vk_dynamic_uniform_descriptor_set_layout;
+
+	if (!SF_VULKAN_CHECK(vkAllocateDescriptorSets(r->vk_device, &info, &descriptor_set)))
+		return VK_NULL_HANDLE;
+
+	buffer_info.buffer = vk_buffer;
+	buffer_info.offset = 0;
+	buffer_info.range = VK_WHOLE_SIZE;
+
+	write.sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET;
+	write.pNext = NULL;
+	write.dstSet = descriptor_set;
+	write.dstBinding = 0;
+	write.dstArrayElement = 0;
+	write.descriptorCount = 1;
+	write.descriptorType = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER;
+	write.pImageInfo = NULL;
+	write.pBufferInfo = &buffer_info;
+	write.pTexelBufferView = NULL;
+
+	vkUpdateDescriptorSets(r->vk_device, 1, &write, 0, NULL);
+}
+
 
 sf_private struct sf_graphics_buffer *sf_graphics_vulkan_buffer_init(struct sf_graphics_renderer *r, u64 size, sf_graphics_buffer_usage_flags buffer_flags, sf_graphics_memory_property_flags memory_flags) {
 	struct sf_graphics_buffer *buffer = sf_graphics_get_buffer_from_pool(r);
@@ -1259,16 +960,24 @@ sf_private struct sf_graphics_buffer *sf_graphics_vulkan_buffer_init(struct sf_g
 	if (!buffer->vk_memory)
 		goto error;
 
+	// TODO(samuel): Maybe remove this
 	if ((buffer_flags & SF_GRAPHICS_BUFFER_USAGE_SHADER_DEVICE_ADDRESS) == SF_GRAPHICS_BUFFER_USAGE_SHADER_DEVICE_ADDRESS) {
 		buffer->vk_address = sf_graphics_vulkan_get_buffer_device_address(r, buffer->vk_buffer);
 		if (!buffer->vk_address)
 			goto error;
 	}
 
-	if ((buffer_flags & SF_GRAPHICS_MEMORY_PROPERTY_CPU_VISIBLE) == SF_GRAPHICS_MEMORY_PROPERTY_CPU_VISIBLE) {
+	if ((memory_flags & SF_GRAPHICS_MEMORY_PROPERTY_CPU_VISIBLE) == SF_GRAPHICS_MEMORY_PROPERTY_CPU_VISIBLE) {
 		if (!SF_VULKAN_CHECK(vkMapMemory(r->vk_device, buffer->vk_memory, 0, VK_WHOLE_SIZE, 0, &buffer->cpu_mapped_data)))
 			goto error;
 	}
+
+
+	if (buffer_flags & SF_GRAPHICS_BUFFER_USAGE_UNIFORM_BUFFER) {
+		buffer->vk_descriptor_set = sf_graphics_vulkan_buffer_descriptor_set_create_and_write(r, buffer_flags, buffer->vk_buffer);
+		if (!buffer->vk_descriptor_set)
+			goto error; 
+	} 
 
 	return buffer;
 
@@ -1391,7 +1100,7 @@ sf_private void sf_graphics_vulkan_command_buffer_deinit(struct sf_graphics_rend
 	if (r->vk_device) {
 		if (command_buffer->vk_command_pool) {
 			if (command_buffer->vk_command_buffer) {
-				vkFreeCommandBuffers(r->vk_device, command_buffer->vk_command_pool, 1, command_buffer->vk_command_pool);
+				vkFreeCommandBuffers(r->vk_device, command_buffer->vk_command_pool, 1, &command_buffer->vk_command_buffer);
 				command_buffer->vk_command_buffer = VK_NULL_HANDLE;
 			}
 
@@ -1427,10 +1136,11 @@ sf_private struct sf_graphics_command_buffer *sf_graphics_vulkan_command_buffer_
 
 error:
 	sf_graphics_vulkan_command_buffer_deinit(r, command_buffer);
+	return NULL;
 }
 
 sf_public sf_handle sf_graphics_command_buffer_init(struct sf_graphics_renderer *r, sf_graphics_command_buffer_usage_flags flags) {
-	sf_handle command_buffer = SF_NULL_HANDLE;
+	struct sf_graphics_command_buffer *command_buffer = NULL;
 
 	command_buffer = sf_graphics_vulkan_command_buffer_init(r, flags);
 	if (!command_buffer)
@@ -1560,17 +1270,19 @@ error:
 	return SF_NULL_HANDLE;
 }
 
-sf_public void sf_graphics_command_buffer_end_submit_and_deinit(struct sf_graphics_renderer *r, sf_handle handle) {
-	sf_graphics_command_buffer_submit_and_block(r, handle);
-	sf_graphics_command_buffer_deinit(r, handle);
+sf_public void sf_graphics_command_buffer_end_submit_and_deinit(struct sf_graphics_renderer *r, sf_handle command_buffer_handle) {
+	sf_graphics_command_buffer_end(r, command_buffer_handle);
+	sf_graphics_command_buffer_submit_and_block(r, command_buffer_handle);
+	sf_graphics_command_buffer_deinit(r, command_buffer_handle);
 }
 
-sf_private void sf_graphics_vulkan_command_transition_layout_for_attachment(struct sf_graphics_renderer *r, sf_handle command_buffer_handle, u32 mips, VkImageAspectFlags vk_aspect_flags, VkImage vk_image) {
+sf_private void sf_graphics_vulkan_command_transition_to_initial_layout(struct sf_graphics_renderer *r, sf_handle command_buffer_handle, u32 mips, VkImageAspectFlags vk_aspect_flags, sf_handle image_handle) {
 	VkImageMemoryBarrier2 barrier = {0};
 	VkDependencyInfo dependency = {0};
 	struct sf_graphics_command_buffer *command_buffer = sf_graphics_command_buffer_from_handle(r, command_buffer_handle);
+	struct sf_graphics_image *image = sf_graphics_image_from_handle(r, image_handle);
 
-	if (!r || !command_buffer || !command_buffer->vk_command_buffer)
+	if (!r || !command_buffer || !command_buffer->vk_command_buffer || !image || !image->vk_image)
 		return;
 
 	barrier.sType = VK_STRUCTURE_TYPE_IMAGE_MEMORY_BARRIER_2;
@@ -1583,7 +1295,7 @@ sf_private void sf_graphics_vulkan_command_transition_layout_for_attachment(stru
 	barrier.newLayout = VK_IMAGE_LAYOUT_GENERAL;
 	barrier.srcQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED;
 	barrier.dstQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED;
-	barrier.image = vk_image;
+	barrier.image = image->vk_image;
 	barrier.subresourceRange.aspectMask = vk_aspect_flags;
 	barrier.subresourceRange.baseMipLevel = 0;
 	barrier.subresourceRange.levelCount = mips;
@@ -1797,7 +1509,7 @@ sf_private void sf_graphics_vulkan_command_bind_shaders(struct sf_graphics_rende
 	vkCmdBindShadersEXT(command_buffer->vk_command_buffer, SF_SIZE(stages), stages, shaders);
 }
 
-sf_private void sf_graphics_vulkan_command_copy_buffer(struct sf_graphics_renderer *r, sf_handle command_buffer_handle, u64 source_offset, u64 destination_offset, u64 size, sf_handle source_buffer_handle, sf_handle destination_buffer_handle) {
+sf_private void sf_graphics_vulkan_command_copy_buffer_to_buffer(struct sf_graphics_renderer *r, sf_handle command_buffer_handle, u64 source_offset, u64 destination_offset, u64 size, sf_handle source_buffer_handle, sf_handle destination_buffer_handle) {
 	VkBufferCopy copy = {0};
 	struct sf_graphics_command_buffer *command_buffer = sf_graphics_command_buffer_from_handle(r, command_buffer_handle);
 	struct sf_graphics_buffer *source_buffer = sf_graphics_buffer_from_handle(r, source_buffer_handle);
@@ -1813,11 +1525,107 @@ sf_private void sf_graphics_vulkan_command_copy_buffer(struct sf_graphics_render
 	vkCmdCopyBuffer(command_buffer->vk_command_buffer, source_buffer->vk_buffer, destination_buffer->vk_buffer, 1, &copy);
 }
 
+sf_private void sf_graphics_vulkan_command_copy_buffer_to_image(struct sf_graphics_renderer *r, sf_handle command_buffer_handle, u64 buffer_offset, u32 width, u32 height, u32 depth, u32 mips, sf_handle source_buffer_handle, sf_handle destination_image_handle) {
+	VkBufferImageCopy copy = {0};
+	struct sf_graphics_command_buffer *command_buffer = sf_graphics_command_buffer_from_handle(r, command_buffer_handle);
+	struct sf_graphics_buffer *source_buffer = sf_graphics_buffer_from_handle(r, source_buffer_handle);
+	struct sf_graphics_image *destination_image = sf_graphics_image_from_handle(r, destination_image_handle);
+
+	if (!r || !command_buffer || !source_buffer || !destination_image)
+		return;
+
+	copy.bufferOffset = buffer_offset;
+	copy.bufferRowLength = 0;
+	copy.bufferImageHeight = 0;
+	copy.imageSubresource.aspectMask = VK_IMAGE_ASPECT_COLOR_BIT;
+	copy.imageSubresource.mipLevel = mips;
+	copy.imageSubresource.baseArrayLayer = 0;
+	copy.imageSubresource.layerCount = 1;
+	copy.imageOffset.x = 0;
+	copy.imageOffset.y = 0;
+	copy.imageOffset.z = 0;
+	copy.imageExtent.width = width;
+	copy.imageExtent.height = height;
+	copy.imageExtent.depth = depth;
+
+	vkCmdCopyBufferToImage(command_buffer->vk_command_buffer, source_buffer->vk_buffer, destination_image->vk_image, VK_IMAGE_LAYOUT_GENERAL, 1, &copy);
+}
+
 sf_private void sf_graphics_vulkan_device_wait_idle(struct sf_graphics_renderer *r) {
 	if (!r || !r->vk_device)
 		return;
 
 	SF_VULKAN_CHECK(vkDeviceWaitIdle(r->vk_device));
+}
+
+sf_private u64 sf_graphics_stride_from_format(enum sf_graphics_format format) {
+	switch (format) {
+		// 1 channel
+		case SF_GRAPHICS_FORMAT_R8_UNORM:
+			return 1;
+		case SF_GRAPHICS_FORMAT_R16_UNORM:
+			return 2;
+		case SF_GRAPHICS_FORMAT_R16_UINT:
+			return 2;
+		case SF_GRAPHICS_FORMAT_R16_SFLOAT:
+			return 2;
+		case SF_GRAPHICS_FORMAT_R32_UINT:
+			return 4;
+		case SF_GRAPHICS_FORMAT_R32_SFLOAT:
+			return 4;
+		// 2 CHANNEL
+		case SF_GRAPHICS_FORMAT_R8G8_UNORM:
+			return 2;
+		case SF_GRAPHICS_FORMAT_R16G16_UNORM:
+			return 4;
+		case SF_GRAPHICS_FORMAT_R16G16_SFLOAT:
+			return 4;
+		case SF_GRAPHICS_FORMAT_R32G32_UINT:
+			return 8;
+		case SF_GRAPHICS_FORMAT_R32G32_SFLOAT:
+			return 8;
+		// 3 CHANNEL
+		case SF_GRAPHICS_FORMAT_R8G8B8_UNORM:
+			return 3;
+		case SF_GRAPHICS_FORMAT_R16G16B16_UNORM:
+			return 6;
+		case SF_GRAPHICS_FORMAT_R16G16B16_SFLOAT:
+			return 6;
+		case SF_GRAPHICS_FORMAT_R32G32B32_UINT:
+			return 12;
+		case SF_GRAPHICS_FORMAT_R32G32B32_SFLOAT:
+			return 12;
+		// 4 CHANNEL
+		case SF_GRAPHICS_FORMAT_B8G8R8A8_UNORM:
+			return 4;
+		case SF_GRAPHICS_FORMAT_R8G8B8A8_UNORM:
+			return 4;
+		case SF_GRAPHICS_FORMAT_R16G16B16A16_UNORM:
+			return 8;
+		case SF_GRAPHICS_FORMAT_R16G16B16A16_SFLOAT:
+			return 8;
+		case SF_GRAPHICS_FORMAT_R32G32B32A32_UINT:
+			return 16;
+		case SF_GRAPHICS_FORMAT_R32G32B32A32_SFLOAT:
+			return 16;
+		// DEPTH/STENCIL
+		case SF_GRAPHICS_FORMAT_D16_UNORM:
+			return 0;
+		case SF_GRAPHICS_FORMAT_X8_D24_UNORM_PACK32:
+			return 0;
+		case SF_GRAPHICS_FORMAT_D32_SFLOAT:
+			return 0;
+		case SF_GRAPHICS_FORMAT_S8_UINT:
+			return 0;
+		case SF_GRAPHICS_FORMAT_D16_UNORM_S8_UINT:
+			return 0;
+		case SF_GRAPHICS_FORMAT_D24_UNORM_S8_UINT:
+			return 0;
+		case SF_GRAPHICS_FORMAT_D32_SFLOAT_S8_UINT:
+			return 0;
+		default:
+			return 0;
+	}
 }
 
 sf_private sf_handle sf_graphics_buffer_init_and_upload_data(struct sf_graphics_renderer *r, sf_graphics_buffer_usage_flags usage, sf_graphics_memory_property_flags memory_properties, u64 data_size_in_bytes, void const *data) {
@@ -1829,15 +1637,15 @@ sf_private sf_handle sf_graphics_buffer_init_and_upload_data(struct sf_graphics_
 	if (!staging_buffer)
 		goto error;
 
-	command_buffer = sf_graphics_command_buffer_init_for_single_use_and_begin(r);
-	if (!command_buffer)
-		goto error;
-
 	buffer = sf_graphics_buffer_init(r, data_size_in_bytes, usage | SF_GRAPHICS_BUFFER_USAGE_TRANSFER_DESTINATION, memory_properties);
 	if (!buffer)
 		goto error;
 
-	sf_graphics_vulkan_command_copy_buffer(r, command_buffer, 0, 0, data_size_in_bytes, staging_buffer, buffer);
+	command_buffer = sf_graphics_command_buffer_init_for_single_use_and_begin(r);
+	if (!command_buffer)
+		goto error;
+
+	sf_graphics_vulkan_command_copy_buffer_to_buffer(r, command_buffer, 0, 0, data_size_in_bytes, staging_buffer, buffer);
 
 	goto cleanup;
 
@@ -2281,7 +2089,7 @@ sf_public VkImage sf_graphics_vulkan_image_create(struct sf_graphics_renderer *r
 	return VK_NULL_HANDLE;
 }
 
-sf_private VkImageView sf_graphics_vulkan_image_view_create(struct sf_graphics_renderer *r, VkImage vk_image, enum sf_graphics_image_type image_type, sf_graphics_image_usage_flags usage_flags, enum sf_graphics_format format, u32 mips) {
+sf_private VkImageView sf_graphics_vulkan_image_view_create(struct sf_graphics_renderer *r, VkImage vk_image, enum sf_graphics_image_type image_type, enum sf_graphics_format format, u32 mips) {
 	VkImageViewCreateInfo info = {0};
 	VkImageView image_view = VK_NULL_HANDLE;
 
@@ -2310,6 +2118,39 @@ sf_private VkImageView sf_graphics_vulkan_image_view_create(struct sf_graphics_r
 	return VK_NULL_HANDLE;
 }
 
+sf_private VkDescriptorSet sf_graphics_vulkan_image_descriptor_set_create_and_write(struct sf_graphics_renderer *r, VkImageView vk_image_view) {
+	VkWriteDescriptorSet write = {0};
+	VkDescriptorImageInfo image_info = {0};
+	VkDescriptorSetAllocateInfo info = {0};
+	VkDescriptorSet descriptor_set = VK_NULL_HANDLE;
+
+	info.sType = VK_STRUCTURE_TYPE_DESCRIPTOR_SET_ALLOCATE_INFO;
+	info.pNext = NULL;
+	info.descriptorPool = r->vk_global_descriptor_pool;
+	info.descriptorSetCount = 1;
+	info.pSetLayouts = &r->vk_image_descriptor_set_layout;
+
+	if (!SF_VULKAN_CHECK(vkAllocateDescriptorSets(r->vk_device, &info, &descriptor_set)))
+		return VK_NULL_HANDLE;
+
+	image_info.sampler = r->vk_linear_sampler; // TODO(samuel): For now default to this, later build a sampler cache
+	image_info.imageView = vk_image_view;
+	image_info.imageLayout = VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL;
+
+	write.sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET;
+	write.pNext = NULL;
+	write.dstSet = descriptor_set;
+	write.dstBinding = 0;
+	write.dstArrayElement = 0;
+	write.descriptorCount = 1;
+	write.descriptorType = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER;
+	write.pImageInfo = &image_info;
+	write.pBufferInfo = NULL;
+	write.pTexelBufferView = NULL;
+
+	vkUpdateDescriptorSets(r->vk_device,1 , &write, 0, NULL);
+}
+
 sf_private void sf_graphics_vulkan_image_deinit(struct sf_graphics_renderer *r, struct sf_graphics_image *image) {
 	if (!r || !image)
 		return;
@@ -2317,6 +2158,13 @@ sf_private void sf_graphics_vulkan_image_deinit(struct sf_graphics_renderer *r, 
 	image->base.is_occupied = SF_FALSE;
 
 	if (r->vk_device) {
+		if (r->vk_global_descriptor_pool) {
+			if (image->vk_descriptor_set) {
+				vkFreeDescriptorSets(r->vk_device, r->vk_global_descriptor_pool, 1, &image->vk_descriptor_set);
+				image->vk_descriptor_set = VK_NULL_HANDLE;
+			}
+		}
+
 		if (image->vk_image_view) {
 			vkDestroyImageView(r->vk_device, image->vk_image_view, r->vk_allocation_callbacks);
 			image->vk_image_view = VK_NULL_HANDLE;
@@ -2331,11 +2179,161 @@ sf_private void sf_graphics_vulkan_image_deinit(struct sf_graphics_renderer *r, 
 	}
 }
 
+sf_private void sf_graphics_vulkan_transition_image_layout(struct sf_graphics_renderer *r, sf_handle command_buffer_handle, sf_handle image_handle, VkImageLayout old_layout, VkImageLayout new_layout) {
+	VkImageMemoryBarrier barrier = {0};
+	VkPipelineStageFlags source_stage = VK_PIPELINE_STAGE_NONE;
+	VkPipelineStageFlags destination_stage = VK_PIPELINE_STAGE_NONE;
+	struct sf_graphics_command_buffer *command_buffer = sf_graphics_command_buffer_from_handle(r, command_buffer_handle);
+	struct sf_graphics_image *image = sf_graphics_image_from_handle(r, image_handle);
+
+	if (!command_buffer)
+		return;
+
+	barrier.sType = VK_STRUCTURE_TYPE_IMAGE_MEMORY_BARRIER;
+	barrier.pNext = NULL;
+	barrier.srcAccessMask = VK_ACCESS_NONE;
+	barrier.dstAccessMask = VK_ACCESS_NONE;
+	barrier.oldLayout = old_layout;
+	barrier.newLayout = new_layout;
+	barrier.srcQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED;
+	barrier.dstQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED;
+	barrier.image = image->vk_image;
+	barrier.subresourceRange.aspectMask = VK_IMAGE_ASPECT_COLOR_BIT;
+	barrier.subresourceRange.baseMipLevel = 0;
+	barrier.subresourceRange.levelCount = 1;
+	barrier.subresourceRange.baseArrayLayer = 0;
+	barrier.subresourceRange.layerCount = 1;
+
+	if (old_layout == VK_IMAGE_LAYOUT_UNDEFINED && new_layout == VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL) {
+		barrier.srcAccessMask = 0;
+		barrier.dstAccessMask = VK_ACCESS_TRANSFER_WRITE_BIT;
+
+		source_stage = VK_PIPELINE_STAGE_TOP_OF_PIPE_BIT;
+		destination_stage = VK_PIPELINE_STAGE_TRANSFER_BIT;
+	} else if (old_layout == VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL && new_layout == VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL) {
+		barrier.srcAccessMask = VK_ACCESS_TRANSFER_WRITE_BIT;
+		barrier.dstAccessMask = VK_ACCESS_SHADER_READ_BIT;
+
+		source_stage = VK_PIPELINE_STAGE_TRANSFER_BIT;
+		destination_stage = VK_PIPELINE_STAGE_FRAGMENT_SHADER_BIT;
+	}
+
+	vkCmdPipelineBarrier(command_buffer->vk_command_buffer, source_stage, destination_stage, 0, 0, NULL, 0, NULL, 1, &barrier);
+}
+
+
+sf_private sf_bool sf_graphics_vulkan_check_mip_map_support(struct sf_graphics_renderer *r, enum sf_graphics_format format) {
+	VkFormatProperties properties = {0};
+	
+	if (!r || !r->vk_physical_device)
+		return SF_FALSE;
+
+	vkGetPhysicalDeviceFormatProperties(r->vk_physical_device, sf_graphics_vulkan_format_from_format(format), &properties);
+	return !(properties.optimalTilingFeatures & VK_FORMAT_FEATURE_SAMPLED_IMAGE_FILTER_LINEAR_BIT);
+}
+
+sf_private void sf_graphics_vulkan_image_generate_mip_maps(struct sf_graphics_renderer *r, sf_handle command_buffer_handle, sf_handle image_handle) {
+	VkImageMemoryBarrier barrier = {0};
+	i32 current_width = 0;
+	i32 current_height = 0;
+	u32 i = 0;
+	struct sf_graphics_command_buffer *command_buffer = sf_graphics_command_buffer_from_handle(r, command_buffer_handle);
+	struct sf_graphics_image *image = sf_graphics_image_from_handle(r, image_handle);
+
+	if (!command_buffer || !image || !sf_graphics_vulkan_check_mip_map_support(r, image->format) || !image->vk_image)
+		return;
+
+	barrier.sType = VK_STRUCTURE_TYPE_IMAGE_MEMORY_BARRIER;
+	barrier.pNext = NULL;
+	barrier.srcAccessMask = VK_ACCESS_NONE;
+	barrier.dstAccessMask = VK_ACCESS_NONE;
+	barrier.oldLayout = VK_IMAGE_LAYOUT_UNDEFINED;
+	barrier.newLayout = VK_IMAGE_LAYOUT_UNDEFINED;
+	barrier.srcQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED;
+	barrier.dstQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED;
+	barrier.image = image->vk_image;
+	barrier.subresourceRange.aspectMask = VK_IMAGE_ASPECT_COLOR_BIT;
+	barrier.subresourceRange.baseMipLevel = 0;
+	barrier.subresourceRange.levelCount = 1;
+	barrier.subresourceRange.baseArrayLayer = 0;
+	barrier.subresourceRange.layerCount = 1;
+
+	current_width = image->width;
+	current_height = image->height;
+
+	for (i = 1; i < image->mips; i++) {
+		VkImageBlit blit = {0};
+
+		barrier.subresourceRange.baseMipLevel = i - 1;
+		barrier.oldLayout = VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL;
+		barrier.newLayout = VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL;
+		barrier.srcAccessMask = VK_ACCESS_TRANSFER_WRITE_BIT;
+		barrier.dstAccessMask = VK_ACCESS_TRANSFER_READ_BIT;
+
+		vkCmdPipelineBarrier(command_buffer->vk_command_buffer, VK_PIPELINE_STAGE_TRANSFER_BIT, VK_PIPELINE_STAGE_TRANSFER_BIT, 0, 0, NULL, 0, NULL, 1, &barrier);
+	
+		blit.srcSubresource.aspectMask = VK_IMAGE_ASPECT_COLOR_BIT;
+		blit.srcSubresource.mipLevel = i - 1;
+		blit.srcSubresource.baseArrayLayer = 0;
+		blit.srcSubresource.layerCount = 1;
+	
+		blit.srcOffsets[0].x = 0;
+		blit.srcOffsets[0].y = 0;
+		blit.srcOffsets[0].z = 0;
+		blit.srcOffsets[1].x = current_width;
+		blit.srcOffsets[1].y = current_height;
+		blit.srcOffsets[1].z = 1;
+
+		blit.dstSubresource.aspectMask = VK_IMAGE_ASPECT_COLOR_BIT;
+		blit.dstSubresource.mipLevel = i;
+		blit.dstSubresource.baseArrayLayer = 0;
+		blit.dstSubresource.layerCount = 1;
+
+		blit.dstOffsets[0].x = 0;
+		blit.dstOffsets[0].y = 0;
+		blit.dstOffsets[0].z = 0;
+
+		blit.dstOffsets[1].x = current_width > 1 ? current_width/ 2 : 1;
+		blit.dstOffsets[1].y = current_height > 1 ? current_height/ 2 : 1;
+		blit.dstOffsets[1].z = 1;
+
+		vkCmdBlitImage(command_buffer->vk_command_buffer, image->vk_image, VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL, image->vk_image, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL, 1, &blit, VK_FILTER_LINEAR);
+
+		barrier.oldLayout = VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL;
+		barrier.newLayout = VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL;
+		barrier.srcAccessMask = VK_ACCESS_TRANSFER_READ_BIT;
+		barrier.dstAccessMask = VK_ACCESS_SHADER_READ_BIT;
+
+		vkCmdPipelineBarrier(command_buffer->vk_command_buffer, VK_PIPELINE_STAGE_TRANSFER_BIT, VK_PIPELINE_STAGE_FRAGMENT_SHADER_BIT, 0, 0, NULL, 0, NULL, 1, &barrier);
+
+		if (current_width > 1)
+			current_width /= 2;
+
+		if (current_height > 1)
+			current_height /= 2;
+	}
+
+	barrier.subresourceRange.baseMipLevel = image->mips - 1;
+	barrier.oldLayout = VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL;
+	barrier.newLayout = VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL;
+	barrier.srcAccessMask = VK_ACCESS_TRANSFER_WRITE_BIT;
+	barrier.dstAccessMask = VK_ACCESS_SHADER_READ_BIT;
+
+	vkCmdPipelineBarrier(command_buffer->vk_command_buffer, VK_PIPELINE_STAGE_TRANSFER_BIT, VK_PIPELINE_STAGE_FRAGMENT_SHADER_BIT, 0, 0, NULL, 0, NULL, 1, &barrier);
+}
+
 sf_private struct sf_graphics_image *sf_graphics_vulkan_image_init_with_image(struct sf_graphics_renderer *r, enum sf_graphics_image_type image_type, sf_graphics_image_usage_flags image_usage, enum sf_graphics_format format, enum sf_graphics_sample_count samples, u32 width, u32 height, u32 mips, VkImage vk_not_owned_image) {
 	struct sf_graphics_image *image = sf_graphics_get_image_from_pool(r);
 
 	if (!image)
 		return SF_NULL_HANDLE;
+
+	image->usage = image_usage;
+	image->format = format;
+	image->mips = sf_graphics_vulkan_check_mip_map_support(r, format) ? mips : 1;
+	image->width = width;
+	image->height = height;
+	image->samples = samples;
 
 	if (vk_not_owned_image) {
 		image->vk_owns_image = SF_FALSE;
@@ -2347,9 +2345,15 @@ sf_private struct sf_graphics_image *sf_graphics_vulkan_image_init_with_image(st
 			goto error;
 	}
 
-	image->vk_image_view = sf_graphics_vulkan_image_view_create(r, image->vk_image, image_type, image_usage, format, mips);
+	image->vk_image_view = sf_graphics_vulkan_image_view_create(r, image->vk_image, image_type, format, mips);
 	if (!image->vk_image_view)
 		goto error;
+
+	if (image_usage & SF_GRAPHICS_IMAGE_USAGE_SAMPLED) {
+		image->vk_descriptor_set = sf_graphics_vulkan_image_descriptor_set_create_and_write(r, image->vk_image_view);
+		if (!image->vk_descriptor_set)
+			goto error;
+	}
 
 	return image;
 
@@ -2367,14 +2371,363 @@ sf_public sf_handle sf_graphics_image_init(struct sf_graphics_renderer *r, enum 
 	return sf_graphics_handle_from_image(r, image);
 }
 
-sf_public sf_handle sf_graphics_image_deinit(struct sf_graphics_renderer *r, sf_handle image_handle) {
+sf_public sf_handle sf_graphics_image_init_and_upload_data(struct sf_graphics_renderer *r, enum sf_graphics_image_type image_type, sf_graphics_image_usage_flags image_usage, enum sf_graphics_format format, enum sf_graphics_sample_count samples, u32 width, u32 height, u32 mips, void const *data) {
+	sf_handle image = SF_NULL_HANDLE;
+	sf_handle staging_buffer = SF_NULL_HANDLE;
+	sf_handle command_buffer = SF_NULL_HANDLE;
+	u64 data_size_in_bytes = width * height * sf_graphics_stride_from_format(format);
+
+	staging_buffer = sf_graphics_buffer_init_for_staging(r, data_size_in_bytes, data);
+	if (!staging_buffer)
+		goto error;
+
+	image = sf_graphics_image_init(r, image_type, image_usage | SF_GRAPHICS_IMAGE_USAGE_TRANSFER_DESTINATION, format, samples, width, height, mips);
+	if (!image)
+		goto error;
+
+	command_buffer = sf_graphics_command_buffer_init_for_single_use_and_begin(r);
+	if (!command_buffer)
+		goto error;
+
+	sf_graphics_vulkan_transition_image_layout(r, command_buffer, image, VK_IMAGE_LAYOUT_UNDEFINED, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL);
+	sf_graphics_vulkan_command_copy_buffer_to_image(r, command_buffer, 0, width, height, 1, mips, staging_buffer, image);
+	sf_graphics_vulkan_transition_image_layout(r, command_buffer, image, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL, VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL);	
+	sf_graphics_vulkan_image_generate_mip_maps(r, command_buffer, image);	
+
+	goto cleanup;
+
+error:
+	sf_graphics_vulkan_device_wait_idle(r);
+
+	sf_graphics_image_deinit(r, image);
+	image = SF_NULL_HANDLE;
+
+cleanup:
+	sf_graphics_command_buffer_end_submit_and_deinit(r, command_buffer);
+	sf_graphics_buffer_deinit(r, staging_buffer);
+
+	return image;
+}
+
+sf_public sf_handle sf_graphics_image_init_from_file(struct sf_graphics_renderer *r, struct sf_string *path) {
+	u32 width = 0;
+	u32 height = 0;
+	enum sf_graphics_format format = SF_GRAPHICS_FORMAT_UNDEFINED;
+	void *data = sf_image_load_from_file(&r->arena, path, &width, &height, &format);
+
+	if (!data)
+		return SF_NULL_HANDLE;
+
+	return sf_graphics_image_init_and_upload_data(r, SF_GRAPHICS_IMAGE_TYPE_2D, SF_GRAPHICS_IMAGE_USAGE_SAMPLED, format, SF_GRAPHICS_SAMPLE_COUNT_1, width, height, 1, data);
+}
+
+sf_public void sf_graphics_image_deinit(struct sf_graphics_renderer *r, sf_handle image_handle) {
 	struct sf_graphics_image *image = sf_graphics_image_from_handle(r, image_handle);
 
 	if (!image)
-		return SF_NULL_HANDLE;
+		return;
 
 	sf_graphics_vulkan_image_deinit(r, image);
-	return SF_NULL_HANDLE;
+}
+
+
+sf_private void sf_graphics_vulkan_swapchain_init(struct sf_graphics_renderer *r) {
+	VkSwapchainCreateInfoKHR info = {0};
+	u32 queue_family_indices[2] = {r->vk_graphics_queue_family_index, r->vk_present_queue_family_index};
+
+	// NOTE(samuel): No vk_swapchain reuse
+	if (!r || !r->vk_device || !r->vk_surface || !r->vk_physical_device || r->vk_swapchain)
+		return;
+
+	info.sType = VK_STRUCTURE_TYPE_SWAPCHAIN_CREATE_INFO_KHR;
+	info.pNext = NULL;
+	info.flags = 0;
+	info.surface = r->vk_surface;
+	info.minImageCount = r->vk_swapchain_requested_image_count;
+	info.imageFormat = r->vk_swapchain_color_format;
+	info.imageColorSpace = r->vk_swapchain_color_space;
+	info.imageExtent.width = r->vk_swapchain_width;
+	info.imageExtent.height = r->vk_swapchain_height;
+	info.imageArrayLayers = 1;
+	info.imageUsage = VK_IMAGE_USAGE_COLOR_ATTACHMENT_BIT | VK_IMAGE_USAGE_TRANSFER_DST_BIT;
+	if (r->vk_graphics_queue_family_index == r->vk_present_queue_family_index) {
+		info.imageSharingMode = VK_SHARING_MODE_EXCLUSIVE;
+		info.queueFamilyIndexCount = 1;
+		info.pQueueFamilyIndices = queue_family_indices;
+	} else {
+		info.imageSharingMode = VK_SHARING_MODE_CONCURRENT;
+		info.queueFamilyIndexCount = SF_SIZE(queue_family_indices);
+		info.pQueueFamilyIndices = queue_family_indices;
+	}
+	info.preTransform = r->vk_surface_capabilities.currentTransform;
+	info.compositeAlpha = VK_COMPOSITE_ALPHA_OPAQUE_BIT_KHR;
+	info.presentMode = r->vk_swapchain_present_mode;
+	info.clipped = VK_TRUE;
+	info.oldSwapchain = VK_NULL_HANDLE;
+
+	if (!SF_VULKAN_CHECK(vkCreateSwapchainKHR(r->vk_device, &info, r->vk_allocation_callbacks, &r->vk_swapchain)))
+		r->vk_swapchain = VK_NULL_HANDLE;
+}
+
+sf_private void sf_graphics_vulkan_swapchain_load_images(struct sf_graphics_renderer *r) {
+	u32 image_count = 0;
+
+	if (!r || !r->vk_swapchain)
+		return;
+
+	if (!SF_VULKAN_CHECK(vkGetSwapchainImagesKHR(r->vk_device, r->vk_swapchain, &image_count, NULL)))
+		return;
+
+	if (image_count > SF_SIZE(r->vk_swapchain_images))
+		return;
+
+	if (!SF_VULKAN_CHECK(vkGetSwapchainImagesKHR(r->vk_device, r->vk_swapchain, &image_count, r->vk_swapchain_images)))
+		return;
+
+	r->vk_swapchain_image_count = image_count;
+}
+
+sf_private void sf_graphics_vulkan_swapchain_find_color_format(struct sf_arena *arena, struct sf_graphics_renderer *r) {
+	u32 i = 0;
+	VkSurfaceFormatKHR requested_format = {0};
+	struct sf_graphics_vulkan_surface_format_array candidates = {0};
+
+	requested_format.format = VK_FORMAT_R8G8B8A8_UNORM;
+	requested_format.colorSpace = VK_COLOR_SPACE_SRGB_NONLINEAR_KHR;
+
+	if (!arena || !r || !r->vk_physical_device || !r->vk_surface)
+		return;
+
+	r->vk_swapchain_color_format = VK_FORMAT_UNDEFINED;
+	r->vk_swapchain_color_space = VK_COLOR_SPACE_SRGB_NONLINEAR_KHR;
+
+	sf_graphics_vulkan_load_surface_formats(arena, r->vk_physical_device, r->vk_surface, &candidates);
+	if (!candidates.size || !candidates.data)
+		return;
+
+	for (i = 0; i < candidates.size; ++i) {
+		VkSurfaceFormatKHR *current = &candidates.data[i];
+
+		if (current->format == requested_format.format && current->colorSpace == requested_format.colorSpace) {
+			r->vk_swapchain_color_format = current->format;
+			r->vk_swapchain_color_space = current->colorSpace;
+			return;
+		}
+	}
+}
+
+sf_private void sf_graphics_vulkan_swapchain_find_depth_stencil_format(struct sf_graphics_renderer *r) {
+	VkFormat candidates[] = {VK_FORMAT_D32_SFLOAT_S8_UINT, VK_FORMAT_D32_SFLOAT, VK_FORMAT_D24_UNORM_S8_UINT, VK_FORMAT_D16_UNORM_S8_UINT, VK_FORMAT_D16_UNORM};
+
+	if (!r)
+		return;
+
+	r->vk_swapchain_depth_stencil_format = VK_FORMAT_UNDEFINED;
+
+	if (!r->vk_physical_device)
+		return;
+
+	r->vk_swapchain_depth_stencil_format = sf_graphics_vulkan_find_format(r->vk_physical_device, SF_SIZE(candidates), candidates, VK_IMAGE_TILING_OPTIMAL, VK_FORMAT_FEATURE_DEPTH_STENCIL_ATTACHMENT_BIT);
+}
+
+sf_private void sf_graphics_vulkan_swapchain_resources_deinit(struct sf_graphics_renderer *r) {
+	u32 i = 0;
+
+	if (!r || !r->vk_device)
+		return;
+
+	for (i = 0; i < SF_SIZE(r->vk_swapchain_in_flight_fences); ++i) {
+		VkFence fence = r->vk_swapchain_in_flight_fences[i];
+
+		if (!fence)
+			continue;
+
+		vkDestroyFence(r->vk_device, fence, r->vk_allocation_callbacks);
+		r->vk_swapchain_in_flight_fences[i] = VK_NULL_HANDLE;
+	}
+	r->vk_swapchain_in_flight_fence_count = 0;
+
+	for (i = 0; i < SF_SIZE(r->vk_swapchain_image_acquired_semaphores); ++i) {
+		VkSemaphore semaphore = r->vk_swapchain_image_acquired_semaphores[i];
+
+		if (!semaphore)
+			continue;
+
+		vkDestroySemaphore(r->vk_device, semaphore, r->vk_allocation_callbacks);
+		r->vk_swapchain_image_acquired_semaphores[i] = VK_NULL_HANDLE;
+	}
+	r->vk_swapchain_image_acquired_semaphore_count = 0;
+
+	for (i = 0; i < SF_SIZE(r->vk_swapchain_draw_complete_semaphores); ++i) {
+		VkSemaphore semaphore = r->vk_swapchain_draw_complete_semaphores[i];
+
+		if (!semaphore)
+			continue;
+
+		vkDestroySemaphore(r->vk_device, semaphore, r->vk_allocation_callbacks);
+		r->vk_swapchain_draw_complete_semaphores[i] = VK_NULL_HANDLE;
+	}
+	r->vk_swapchain_draw_complete_semaphore_count = 0;
+
+	for (i = 0; i < SF_SIZE(r->swapchain_attachments); ++i) {
+		sf_handle attachment = r->swapchain_attachments[i];
+		sf_graphics_image_deinit(r, attachment);
+		r->swapchain_attachments[i] = SF_NULL_HANDLE;
+	}
+	r->swapchain_attachment_count = 0;
+
+	SF_ARRAY_INIT(r->vk_swapchain_images, VK_NULL_HANDLE);
+	r->vk_swapchain_image_count = 0;
+
+	if (r->vk_swapchain) {
+		vkDestroySwapchainKHR(r->vk_device, r->vk_swapchain, r->vk_allocation_callbacks);
+		r->vk_swapchain = VK_NULL_HANDLE;
+	}
+}
+
+sf_private void sf_graphics_vulkan_swapchain_find_surface_capabilities(struct sf_graphics_renderer *r) {
+	u32 min_image_count = 0;
+	u32 max_image_count = 0;
+	u32 req_image_count = 3;
+
+	if (!r || !r->vk_physical_device || !r->vk_surface)
+		return;
+
+	r->vk_swapchain_requested_frames = 3; // TODO(samuel): Set from info or somewhere else
+
+	r->vk_swapchain_width = 0;
+	r->vk_swapchain_height = 0;
+
+	r->vk_swapchain_min_image_count = 0;
+	r->vk_swapchain_max_image_count = 0;
+	r->vk_swapchain_requested_image_count = 0;
+
+	if (!SF_VULKAN_CHECK(vkGetPhysicalDeviceSurfaceCapabilitiesKHR(r->vk_physical_device, r->vk_surface, &r->vk_surface_capabilities)))
+		return;
+
+	r->vk_swapchain_width = r->vk_surface_capabilities.currentExtent.width;
+	r->vk_swapchain_height = r->vk_surface_capabilities.currentExtent.height;
+
+	min_image_count = r->vk_surface_capabilities.minImageCount;
+	max_image_count = r->vk_surface_capabilities.maxImageCount;
+
+	r->vk_swapchain_min_image_count = min_image_count;
+	r->vk_swapchain_max_image_count = max_image_count ? SF_MIN(max_image_count, SF_GRAPHICS_MAX_SWAPCHAIN_IMAGE_COUNT) : SF_GRAPHICS_MAX_SWAPCHAIN_IMAGE_COUNT;
+	r->vk_swapchain_requested_image_count = SF_CLAMP(req_image_count, r->vk_swapchain_min_image_count, r->vk_swapchain_max_image_count);
+}
+
+sf_private void sf_graphics_vulkan_swapchain_attachments_init(struct sf_graphics_renderer *r) {
+	u32 i = 0;
+
+	if (!r || !r->vk_device)
+		return;
+
+	r->swapchain_attachment_count = 0;
+
+	for (i = 0; i < r->vk_swapchain_image_count; ++i) {
+		// FIXME(samuel): hate this
+		struct sf_graphics_image *image = sf_graphics_vulkan_image_init_with_image(r, SF_GRAPHICS_IMAGE_TYPE_2D, SF_GRAPHICS_IMAGE_USAGE_COLOR_ATTACHMENT, r->vk_swapchain_color_format, r->vk_swapchain_samples, r->vk_swapchain_width, r->vk_swapchain_height, 1, r->vk_swapchain_images[i]);
+		r->swapchain_attachments[i] = sf_graphics_handle_from_image(r, image);
+		if (!r->swapchain_attachments[i])
+			return;
+	}
+
+	r->swapchain_attachment_count = r->vk_swapchain_image_count;
+}
+
+sf_private void sf_graphics_vulkan_swapchain_draw_complete_semaphores_init(struct sf_graphics_renderer *r) {
+	u32 i = 0;
+	VkSemaphoreCreateInfo info = {0};
+
+	for (i = 0; i < r->vk_swapchain_image_count; ++i) {
+		info.sType = VK_STRUCTURE_TYPE_SEMAPHORE_CREATE_INFO;
+		info.pNext = NULL;
+		info.flags = 0;
+
+		if (!SF_VULKAN_CHECK(vkCreateSemaphore(r->vk_device, &info, r->vk_allocation_callbacks, &r->vk_swapchain_draw_complete_semaphores[i]))) {
+			r->vk_swapchain_draw_complete_semaphores[i] = VK_NULL_HANDLE;
+			return;
+		}
+	}
+
+	r->vk_swapchain_draw_complete_semaphore_count = r->vk_swapchain_image_count;
+}
+
+sf_private void sf_graphics_vulkan_swapchain_image_acquired_semaphores_init(struct sf_graphics_renderer *r) {
+	u32 i = 0;
+	VkSemaphoreCreateInfo info = {0};
+
+	for (i = 0; i < r->vk_swapchain_requested_frames; ++i) {
+		info.sType = VK_STRUCTURE_TYPE_SEMAPHORE_CREATE_INFO;
+		info.pNext = NULL;
+		info.flags = 0;
+
+		if (!SF_VULKAN_CHECK(vkCreateSemaphore(r->vk_device, &info, r->vk_allocation_callbacks, &r->vk_swapchain_image_acquired_semaphores[i]))) {
+			r->vk_swapchain_image_acquired_semaphores[i] = VK_NULL_HANDLE;
+			return;
+		}
+	}
+
+	r->vk_swapchain_image_acquired_semaphore_count = r->vk_swapchain_requested_frames;
+}
+
+sf_private void sf_graphics_vulkan_swapchain_in_flight_fences_init(struct sf_graphics_renderer *r) {
+	u32 i = 0;
+	VkFenceCreateInfo info = {0};
+
+	for (i = 0; i < r->vk_swapchain_requested_frames; ++i) {
+		info.sType = VK_STRUCTURE_TYPE_FENCE_CREATE_INFO;
+		info.pNext = NULL;
+		info.flags = 0;
+
+		if (!SF_VULKAN_CHECK(vkCreateFence(r->vk_device, &info, r->vk_allocation_callbacks, &r->vk_swapchain_in_flight_fences[i]))) {
+			r->vk_swapchain_image_acquired_semaphores[i] = VK_NULL_HANDLE;
+			return;
+		}
+	}
+
+	r->vk_swapchain_in_flight_fence_count = r->vk_swapchain_requested_frames;
+}
+
+sf_private void sf_graphics_vulkan_swapchain_resources_init(struct sf_arena *arena, struct sf_graphics_renderer *r) {
+	if (!arena || !r || !r->vk_physical_device || !r->vk_surface || !r->vk_device)
+		return;
+
+	r->vk_swapchain = VK_NULL_HANDLE;
+
+	sf_graphics_vulkan_swapchain_find_color_format(arena, r);
+	sf_graphics_vulkan_swapchain_find_depth_stencil_format(r);
+	sf_graphics_vulkan_swapchain_find_present_mode(arena, r);
+	sf_graphics_vulkan_swapchain_find_surface_capabilities(r);
+
+	sf_graphics_vulkan_swapchain_init(r);
+	if (!r->vk_swapchain)
+		goto error;
+
+	sf_graphics_vulkan_swapchain_load_images(r);
+	if (!r->vk_swapchain_image_count)
+		goto error;
+
+	sf_graphics_vulkan_swapchain_attachments_init(r);
+	if (!r->swapchain_attachment_count)
+		goto error;
+
+	sf_graphics_vulkan_swapchain_draw_complete_semaphores_init(r);
+	if (!r->vk_swapchain_draw_complete_semaphore_count)
+		goto error;
+
+	sf_graphics_vulkan_swapchain_image_acquired_semaphores_init(r);
+	if (!r->vk_swapchain_image_acquired_semaphore_count)
+		goto error;
+
+	sf_graphics_vulkan_swapchain_in_flight_fences_init(r);
+	if (!r->vk_swapchain_in_flight_fence_count)
+		goto error;
+
+	return;
+
+error:
+	sf_graphics_vulkan_swapchain_resources_deinit(r);
 }
 
 sf_private void sf_graphics_vulkan_render_target_deinit(struct sf_graphics_renderer *r, struct sf_graphics_render_target *render_target) {
@@ -2385,81 +2738,302 @@ sf_private void sf_graphics_vulkan_render_target_deinit(struct sf_graphics_rende
 
 	render_target->base.is_occupied = SF_FALSE;
 
-	for (i = 0; i < SF_SIZE(render_target->color_attachments); ++i) {
-		sf_handle attachment = render_target->color_attachments[i];
+	if (r->vk_device) {
+		if (render_target->vk_framebuffer) {
+			vkDestroyFramebuffer(r->vk_device, render_target->vk_framebuffer, r->vk_allocation_callbacks);
+			render_target->vk_framebuffer = VK_NULL_HANDLE;
+		}
 
-		if (!attachment)
-			continue;
-
-		sf_graphics_vulkan_image_deinit(r, attachment);
-		render_target->color_attachments[i] = SF_NULL_HANDLE;
+		if (render_target->vk_render_pass) {
+			vkDestroyRenderPass(r->vk_device, render_target->vk_render_pass, r->vk_allocation_callbacks);
+			render_target->vk_render_pass = VK_NULL_HANDLE;
+		}
 	}
+
+	if (render_target->owns_color_attachments) {
+		for (i = 0; i < SF_SIZE(render_target->color_attachments); ++i) {
+			sf_handle attachment = render_target->color_attachments[i];
+
+			if (!attachment)
+				continue;
+
+			sf_graphics_image_deinit(r, attachment);
+			render_target->color_attachments[i] = SF_NULL_HANDLE;
+		}
+	} else {
+		SF_ARRAY_INIT(render_target->color_attachments, SF_NULL_HANDLE);
+	}
+	
+	render_target->owns_color_attachments = SF_FALSE;
 	render_target->color_attachment_count = 0;
 
 	if (render_target->depth_stencil_attachment) {
-		sf_graphics_vulkan_image_deinit(r, render_target->depth_stencil_attachment);
+		sf_graphics_image_deinit(r, render_target->depth_stencil_attachment);
 		render_target->depth_stencil_attachment = SF_NULL_HANDLE;
 	}
-
-	for (i = 0; i < SF_SIZE(render_target->imgui_attachments); ++i) {
-		sf_handle attachment = render_target->imgui_attachments[i];
-
-		if (!attachment)
-			continue;
-
-		sf_graphics_vulkan_image_deinit(r, attachment);
-		render_target->imgui_attachments[i] = SF_NULL_HANDLE;
-	}
-	render_target->imgui_attachment_count = 0;
 }
 
-sf_private struct sf_graphics_render_target *sf_graphics_vulkan_render_target_init(struct sf_graphics_renderer *r, u32 width, u32 height, enum sf_graphics_format color_attachment_format, u32 color_attachment_count, enum sf_graphics_format depth_stencil_format, enum sf_graphics_samples samples) {
+sf_private void sf_graphics_vulkan_linear_sampler_init(struct sf_graphics_renderer *r) {
+	VkSamplerCreateInfo info = {0};
+
+	if (!r || !r->vk_device)
+		return;
+
+	info.sType = VK_STRUCTURE_TYPE_SAMPLER_CREATE_INFO;
+	info.pNext = NULL;
+	info.flags = 0;
+	info.magFilter = VK_FILTER_LINEAR;
+	info.minFilter = VK_FILTER_LINEAR;
+	info.mipmapMode = VK_SAMPLER_MIPMAP_MODE_LINEAR;
+	info.addressModeU = VK_SAMPLER_ADDRESS_MODE_REPEAT;
+	info.addressModeV = VK_SAMPLER_ADDRESS_MODE_REPEAT;
+	info.addressModeW = VK_SAMPLER_ADDRESS_MODE_REPEAT;
+	info.mipLodBias = 0.0F;
+	info.anisotropyEnable = VK_FALSE;
+	info.maxAnisotropy = 1.0F;
+	info.compareEnable = VK_FALSE;
+	info.compareOp = VK_COMPARE_OP_ALWAYS;
+	info.minLod = 0.0F;
+	info.maxLod = VK_LOD_CLAMP_NONE;
+	info.borderColor = VK_BORDER_COLOR_INT_OPAQUE_BLACK;
+	info.unnormalizedCoordinates = VK_FALSE;
+
+	if (SF_VULKAN_CHECK(vkCreateSampler(r->vk_device, &info, r->vk_allocation_callbacks, &r->vk_linear_sampler)))
+		r->vk_linear_sampler = VK_NULL_HANDLE;
+}
+
+sf_private u64 sf_u64_align_up(u64 value, u64 alignment) {
+	if (!alignment)
+		return value;
+
+	return ((value + alignment - 1) / alignment) * alignment;
+}
+
+sf_private u32 sf_graphics_value_or_else(u32 value, u32 default_value) {
+	return value ? value : default_value;
+}
+
+#define SF_GRAPHICS_MAX_RENDER_TARGET_TOTAL_ATTACHMENT_COUNT (SF_GRAPHICS_MAX_RENDER_TARGET_ATTACHMENT_COUNT * 2 + 1)
+
+struct sf_graphics_render_target_attachment_array {
+	u32 size;
+	VkImageView data[SF_GRAPHICS_MAX_RENDER_TARGET_TOTAL_ATTACHMENT_COUNT];
+};
+
+sf_private void sf_graphics_vulkan_render_target_load_attachment_array(struct sf_graphics_renderer *r, struct sf_graphics_render_target *render_target, struct sf_graphics_render_target_attachment_array *array) {
+	SF_STATIC_ASSERT(SF_SIZE(render_target->color_attachments) == SF_GRAPHICS_MAX_RENDER_TARGET_ATTACHMENT_COUNT, render_target_color_attachment_size_doesnt_match);
+	SF_STATIC_ASSERT(SF_SIZE(render_target->resolve_attachments) == SF_GRAPHICS_MAX_RENDER_TARGET_ATTACHMENT_COUNT, render_target_resolve_attachment_size_doesnt_match);
+
 	u32 i = 0;
-	sf_handle command_buffer = SF_NULL_HANDLE;
+
+	array->size = 0;
+	SF_ARRAY_INIT(array->data, VK_NULL_HANDLE);
+
+	if (render_target->samples != SF_GRAPHICS_SAMPLE_COUNT_1)
+		if (render_target->color_attachment_count != render_target->resolve_attachment_count)
+			return;
+
+	for (i = 0; i < render_target->color_attachment_count; ++i) {
+		if (render_target->samples != SF_GRAPHICS_SAMPLE_COUNT_1) {
+			struct sf_graphics_image *resolve_image = sf_graphics_image_from_handle(r, render_target->resolve_attachments[i]);
+			array->data[array->size++] = resolve_image->vk_image_view;
+		}
+	
+		struct sf_graphics_image *color_image = sf_graphics_image_from_handle(r, render_target->color_attachments[i]);
+		array->data[array->size++] = color_image->vk_image_view;
+	}
+
+	if (render_target->depth_stencil_attachment) {
+		struct sf_graphics_image *image = sf_graphics_image_from_handle(r, render_target->depth_stencil_attachment);
+		array->data[array->size++] = image->vk_image_view;
+	}
+}
+
+sf_private void sf_graphics_vulkan_render_target_render_pass_init(struct sf_graphics_renderer *r, struct sf_graphics_render_target *render_target) {
+	u32 i = 0;
+	u32 global_attachment_count = 0;
+
+	VkAttachmentDescription attachments[SF_GRAPHICS_MAX_RENDER_TARGET_TOTAL_ATTACHMENT_COUNT] = {0};
+	VkAttachmentReference color_references[SF_GRAPHICS_MAX_RENDER_TARGET_ATTACHMENT_COUNT] = {0};
+	VkAttachmentReference resolve_references[SF_GRAPHICS_MAX_RENDER_TARGET_ATTACHMENT_COUNT] = {0};
+	VkAttachmentReference depth_stencil_reference = {0};
+	VkSubpassDescription subpass = {0};
+	VkSubpassDependency subpass_dependency = {0};
+	VkRenderPassCreateInfo render_pass_info = {0};
+
+	render_target->vk_render_pass = VK_NULL_HANDLE;
+
+	for (i = 0; i < render_target->color_attachment_count; ++i) {
+		if (render_target->samples != SF_GRAPHICS_SAMPLE_COUNT_1) {
+			attachments[global_attachment_count].flags = 0;
+			attachments[global_attachment_count].format = sf_graphics_vulkan_format_from_format(render_target->color_format);
+			attachments[global_attachment_count].samples = sf_graphics_vulkan_sample_count_from_sample_count(render_target->samples);
+			attachments[global_attachment_count].loadOp = VK_ATTACHMENT_LOAD_OP_CLEAR;
+			attachments[global_attachment_count].storeOp = VK_ATTACHMENT_STORE_OP_STORE;
+			attachments[global_attachment_count].stencilLoadOp = VK_ATTACHMENT_LOAD_OP_CLEAR;
+			attachments[global_attachment_count].stencilStoreOp = VK_ATTACHMENT_STORE_OP_STORE;
+			attachments[global_attachment_count].initialLayout = VK_IMAGE_LAYOUT_UNDEFINED;
+			attachments[global_attachment_count].finalLayout = render_target->will_be_presented ? VK_IMAGE_LAYOUT_PRESENT_SRC_KHR : VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL;
+
+			resolve_references[i].attachment = global_attachment_count;
+			resolve_references[i].layout = VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL; // FIXME(samuel): is this layout right?
+
+			++global_attachment_count;
+		}
+	
+
+		attachments[global_attachment_count].flags = 0;
+		attachments[global_attachment_count].format = sf_graphics_vulkan_format_from_format(render_target->color_format);
+		attachments[global_attachment_count].samples = sf_graphics_vulkan_sample_count_from_sample_count(SF_GRAPHICS_SAMPLE_COUNT_1);
+		attachments[global_attachment_count].loadOp = VK_ATTACHMENT_LOAD_OP_CLEAR;
+		attachments[global_attachment_count].storeOp = VK_ATTACHMENT_STORE_OP_STORE;
+		attachments[global_attachment_count].stencilLoadOp = VK_ATTACHMENT_LOAD_OP_CLEAR;
+		attachments[global_attachment_count].stencilStoreOp = VK_ATTACHMENT_STORE_OP_STORE;
+		attachments[global_attachment_count].initialLayout = VK_IMAGE_LAYOUT_UNDEFINED;
+		if (render_target->samples == SF_GRAPHICS_SAMPLE_COUNT_1)
+			attachments[global_attachment_count].finalLayout = render_target->will_be_presented ? VK_IMAGE_LAYOUT_PRESENT_SRC_KHR : VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL;
+		else
+			attachments[global_attachment_count].finalLayout = VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL;
+
+		color_references[i].attachment = global_attachment_count;
+		color_references[i].layout = VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL; // FIXME(samuel): is this layout right?
+
+		++global_attachment_count;
+	}
+	
+	if (render_target->depth_stencil_format) {
+		attachments[global_attachment_count].flags = 0;
+		attachments[global_attachment_count].format = sf_graphics_vulkan_format_from_format(render_target->depth_stencil_format);
+		attachments[global_attachment_count].samples = sf_graphics_vulkan_sample_count_from_sample_count(render_target->samples);
+		attachments[global_attachment_count].loadOp = VK_ATTACHMENT_LOAD_OP_CLEAR;
+		attachments[global_attachment_count].storeOp = VK_ATTACHMENT_STORE_OP_STORE;
+		attachments[global_attachment_count].stencilLoadOp = VK_ATTACHMENT_LOAD_OP_CLEAR;
+		attachments[global_attachment_count].stencilStoreOp = VK_ATTACHMENT_STORE_OP_STORE;
+		attachments[global_attachment_count].initialLayout = VK_IMAGE_LAYOUT_UNDEFINED;
+		attachments[global_attachment_count].finalLayout = VK_IMAGE_LAYOUT_DEPTH_STENCIL_ATTACHMENT_OPTIMAL;
+
+		depth_stencil_reference.attachment = global_attachment_count;
+		depth_stencil_reference.layout = VK_IMAGE_LAYOUT_DEPTH_STENCIL_ATTACHMENT_OPTIMAL;
+
+		++global_attachment_count;
+	}
+
+	subpass.flags = 0;
+	subpass.pipelineBindPoint = VK_PIPELINE_BIND_POINT_GRAPHICS;
+	subpass.inputAttachmentCount = 0;
+	subpass.pInputAttachments = NULL;
+	subpass.colorAttachmentCount = render_target->color_attachment_count;
+	subpass.pColorAttachments = color_references;
+	subpass.pResolveAttachments = resolve_references;
+	subpass.pDepthStencilAttachment = &depth_stencil_reference;
+	subpass.preserveAttachmentCount = 0;
+	subpass.pPreserveAttachments = NULL;
+
+	subpass_dependency.srcSubpass = 0;
+	subpass_dependency.dstSubpass = 0;
+	subpass_dependency.srcStageMask = VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT;
+	subpass_dependency.dstStageMask = VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT;
+	subpass_dependency.srcAccessMask = VK_ACCESS_COLOR_ATTACHMENT_WRITE_BIT;
+	subpass_dependency.dstAccessMask = VK_ACCESS_COLOR_ATTACHMENT_WRITE_BIT;
+	subpass_dependency.dependencyFlags = VK_DEPENDENCY_BY_REGION_BIT;
+
+	render_pass_info.sType = VK_STRUCTURE_TYPE_RENDER_PASS_CREATE_INFO;
+	render_pass_info.pNext = NULL;
+	render_pass_info.flags = 0;
+	render_pass_info.attachmentCount = global_attachment_count;
+	render_pass_info.pAttachments = attachments;
+	render_pass_info.subpassCount = 1;
+	render_pass_info.pSubpasses = &subpass;
+	render_pass_info.dependencyCount = 1;
+	render_pass_info.pDependencies = &subpass_dependency;
+
+	if (!SF_VULKAN_CHECK(vkCreateRenderPass(r->vk_device, &render_pass_info, r->vk_allocation_callbacks, &render_target->vk_render_pass)))
+		render_target->vk_render_pass = VK_NULL_HANDLE;
+}
+
+sf_private void sf_graphics_vulkan_render_target_framebuffer_init(struct sf_graphics_renderer *r, struct sf_graphics_render_target *render_target) {
+	struct sf_graphics_render_target_attachment_array attachments = {0};
+	VkFramebufferCreateInfo info = {0};
+
+	if (!r || !render_target || !r->vk_device || render_target->vk_framebuffer)
+		return;
+
+	render_target->vk_framebuffer = VK_NULL_HANDLE;
+	
+	sf_graphics_vulkan_render_target_load_attachment_array(r, render_target, &attachments);
+
+	info.sType = VK_STRUCTURE_TYPE_FRAMEBUFFER_CREATE_INFO;
+	info.pNext = NULL;
+	info.flags = 0;
+	info.renderPass = render_target->vk_render_pass;
+	info.attachmentCount = attachments.size;
+	info.pAttachments = attachments.data;
+	info.width = render_target->width;
+	info.height = render_target->height;
+	info.layers = 1;
+
+	if (!SF_VULKAN_CHECK(vkCreateFramebuffer(r->vk_device, &info, r->vk_allocation_callbacks, &render_target->vk_framebuffer)))
+		render_target->vk_framebuffer = VK_NULL_HANDLE;
+}
+
+sf_private struct sf_graphics_render_target *sf_graphics_vulkan_render_target_init(struct sf_graphics_renderer *r, u32 width, u32 height, enum sf_graphics_format color_attachment_format, u32 color_attachment_count, sf_handle *color_attachments, enum sf_graphics_format depth_stencil_format, enum sf_graphics_sample_count samples) {
+	u32 i = 0;
 	struct sf_graphics_render_target *render_target = sf_graphics_get_render_target_from_pool(r);
 
 	if (!render_target || !width || !height)
 		return NULL;
 
+	render_target->owns_color_attachments = !color_attachments;
+	render_target->width = width;
+	render_target->height = height;
+	render_target->samples = samples;
+	render_target->depth_stencil_format = depth_stencil_format;
+
 	if (color_attachment_count > SF_SIZE(render_target->color_attachments))
 		goto error;
 
 	for (i = 0; i < color_attachment_count; ++i) {
-		sf_graphics_image_usage_flags usage = SF_GRAPHICS_IMAGE_USAGE_COLOR_ATTACHMENT | SF_GRAPHICS_IMAGE_USAGE_TRANSFER_SOURCE | SF_GRAPHICS_IMAGE_USAGE_TRANSFER_DESTINATION | SF_GRAPHICS_IMAGE_USAGE_SAMPLED | SF_GRAPHICS_IMAGE_USAGE_STORAGE;
-
-		render_target->color_attachments[i] = sf_graphics_image_init(r, SF_GRAPHICS_IMAGE_TYPE_2D, usage, color_attachment_format, samples, width, height, 1);
+		if (!color_attachments) {
+			sf_graphics_image_usage_flags usage = SF_GRAPHICS_IMAGE_USAGE_COLOR_ATTACHMENT | SF_GRAPHICS_IMAGE_USAGE_TRANSFER_SOURCE | SF_GRAPHICS_IMAGE_USAGE_TRANSFER_DESTINATION | SF_GRAPHICS_IMAGE_USAGE_SAMPLED;
+			render_target->color_attachments[i] = sf_graphics_image_init(r, SF_GRAPHICS_IMAGE_TYPE_2D, usage, color_attachment_format, samples, width, height, 1);
+		} else {
+			render_target->color_attachments[i] = color_attachments[i];
+		}
 
 		if (!render_target->color_attachments[i])
 			goto error;
+		
 
 		// FIXME(SamueL):  there needs to be a second view forced to have a 1 in the alpha channel??
 	}
+	render_target->color_attachment_count = color_attachment_count;
+
+	if (samples != SF_GRAPHICS_SAMPLE_COUNT_1) {
+		for (i = 0; i < color_attachment_count; ++i) {
+			sf_graphics_image_usage_flags usage = SF_GRAPHICS_IMAGE_USAGE_COLOR_ATTACHMENT | SF_GRAPHICS_IMAGE_USAGE_TRANSFER_SOURCE | SF_GRAPHICS_IMAGE_USAGE_TRANSFER_DESTINATION | SF_GRAPHICS_IMAGE_USAGE_SAMPLED;
+			render_target->resolve_attachments[i] = sf_graphics_image_init(r, SF_GRAPHICS_IMAGE_TYPE_2D, usage, color_attachment_format, SF_GRAPHICS_SAMPLE_COUNT_1, width, height, 1);
+			if (!render_target->resolve_attachments[i])
+				goto error;
+		}
+		render_target->resolve_attachment_count = color_attachment_count;
+	}
+
 
 	if (depth_stencil_format != SF_GRAPHICS_FORMAT_UNDEFINED) {
 		sf_graphics_image_usage_flags usage = SF_GRAPHICS_IMAGE_USAGE_DEPTH_STENCIL_ATTACHMENT | SF_GRAPHICS_IMAGE_USAGE_SAMPLED;
-
 		render_target->depth_stencil_attachment = sf_graphics_image_init(r, SF_GRAPHICS_IMAGE_TYPE_2D, usage, depth_stencil_format, samples, width, height, 1);
 
 		if (!render_target->depth_stencil_attachment)
 			goto error;
 	}
 
-	command_buffer = sf_graphics_command_buffer_init_for_single_use_and_begin(r);
-	if (!command_buffer)
+	sf_graphics_vulkan_render_target_render_pass_init(r, render_target);
+	if (!render_target->vk_render_pass)
 		goto error;
 
-	for (i = 0; i < color_attachment_count; ++i) {
-		sf_handle attachment = render_target->color_attachments[i]; // NOTE(samuel): Should never be null here, was checked when created.
-		struct sf_graphics_image *image = sf_graphics_image_from_handle(r, attachment);
-		sf_graphics_vulkan_command_transition_layout_for_attachment(r, command_buffer, VK_REMAINING_MIP_LEVELS, VK_IMAGE_ASPECT_COLOR_BIT, image->vk_image);
-	}
-
-	if (render_target->depth_stencil_attachment) {
-		struct sf_graphics_image *image = sf_graphics_image_from_handle(r, render_target->depth_stencil_attachment); // NOTE(samuel): Should never be null here, was checked when created.
-		sf_graphics_vulkan_command_transition_layout_for_attachment(r, command_buffer, VK_REMAINING_MIP_LEVELS, VK_IMAGE_ASPECT_DEPTH_BIT | VK_IMAGE_ASPECT_STENCIL_BIT, image->vk_image);
-	}
-
-	sf_graphics_command_buffer_end_submit_and_deinit(r, command_buffer);
+	sf_graphics_vulkan_render_target_framebuffer_init(r, render_target);
+	if (!render_target->vk_framebuffer)
+		goto error;
 
 	return render_target;
 
@@ -2468,13 +3042,160 @@ error:
 	return NULL;
 }
 
+sf_private void sf_graphics_vulkan_descriptor_set_layouts_deinit(struct sf_graphics_renderer *r) {
+	if (r && r->vk_device) {
+		if (r->vk_dynamic_uniform_descriptor_set_layout) {
+			vkDestroyDescriptorSetLayout(r->vk_device, r->vk_dynamic_uniform_descriptor_set_layout, r->vk_allocation_callbacks);
+			r->vk_dynamic_uniform_descriptor_set_layout = VK_NULL_HANDLE;
+		}
+
+		if (r->vk_uniform_descriptor_set_layout) {
+			vkDestroyDescriptorSetLayout(r->vk_device, r->vk_uniform_descriptor_set_layout, r->vk_allocation_callbacks);
+			r->vk_uniform_descriptor_set_layout = VK_NULL_HANDLE;
+		}
+
+		if (r->vk_image_descriptor_set_layout) {
+			vkDestroyDescriptorSetLayout(r->vk_device, r->vk_image_descriptor_set_layout, r->vk_allocation_callbacks);
+			r->vk_image_descriptor_set_layout = VK_NULL_HANDLE;
+		}
+	}
+}
+
+sf_private void sf_graphics_vulkan_descriptor_set_layouts_init(struct sf_graphics_renderer *r) {
+	VkDescriptorSetLayoutBinding image_bindings[1] = {0};
+	VkDescriptorSetLayoutBinding uniform_bindings[1] = {0};
+	VkDescriptorSetLayoutBinding dynamic_uniform_bindings[1] = {0};
+	VkDescriptorSetLayoutCreateInfo info = {0};
+
+	info.sType = VK_STRUCTURE_TYPE_DESCRIPTOR_SET_LAYOUT_CREATE_INFO;
+	info.pNext = NULL;
+	info.flags = 0;
+
+	image_bindings[0].binding = 0;
+	image_bindings[0].descriptorType = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER;
+	image_bindings[0].descriptorCount = 1;
+	image_bindings[0].stageFlags = VK_SHADER_STAGE_FRAGMENT_BIT;
+	image_bindings[0].pImmutableSamplers = NULL;
+
+	info.bindingCount = SF_SIZE(image_bindings);
+	info.pBindings = image_bindings;
+
+	if (SF_VULKAN_CHECK(vkCreateDescriptorSetLayout(r->vk_device, &info, r->vk_allocation_callbacks, &r->vk_image_descriptor_set_layout)))
+		goto error;
+
+	uniform_bindings[0].binding = 0;
+	uniform_bindings[0].descriptorType = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER;
+	uniform_bindings[0].descriptorCount = 1;
+	uniform_bindings[0].stageFlags = VK_SHADER_STAGE_VERTEX_BIT;
+	uniform_bindings[0].pImmutableSamplers = NULL;
+
+	info.bindingCount = SF_SIZE(uniform_bindings);
+	info.pBindings = uniform_bindings;
+
+	if (SF_VULKAN_CHECK(vkCreateDescriptorSetLayout(r->vk_device, &info, r->vk_allocation_callbacks, &r->vk_uniform_descriptor_set_layout)))
+		goto error;
+
+	dynamic_uniform_bindings[0].binding = 0;
+	dynamic_uniform_bindings[0].descriptorType = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER_DYNAMIC;
+	dynamic_uniform_bindings[0].descriptorCount = 1;
+	dynamic_uniform_bindings[0].stageFlags = VK_SHADER_STAGE_VERTEX_BIT;
+	dynamic_uniform_bindings[0].pImmutableSamplers = NULL;
+
+	info.bindingCount = SF_SIZE(dynamic_uniform_bindings);
+	info.pBindings = dynamic_uniform_bindings;
+
+	if (SF_VULKAN_CHECK(vkCreateDescriptorSetLayout(r->vk_device, &info, r->vk_allocation_callbacks, &r->vk_dynamic_uniform_descriptor_set_layout)))
+		goto error;
+
+	return;
+error:
+	sf_graphics_vulkan_descriptor_set_layouts_deinit(r);
+}
+
+sf_private void sf_graphics_vulkan_pipeline_layouts_deinit(struct sf_graphics_renderer *r) {
+	if (r && r->vk_device) {
+		if (r->vk_general_pipeline_layout) {
+			vkDestroyPipelineLayout(r->vk_device, r->vk_general_pipeline_layout, r->vk_allocation_callbacks);
+			r->vk_general_pipeline_layout = VK_NULL_HANDLE;
+		}
+	}
+}
+
+sf_public void sf_graphics_vulkan_pipeline_layouts_init(struct sf_graphics_renderer *r) {
+	VkPipelineLayoutCreateInfo info = {0};
+	VkDescriptorSetLayout layouts[4] = {0};
+
+	layouts[0] = r->vk_dynamic_uniform_descriptor_set_layout;
+	layouts[1] = r->vk_uniform_descriptor_set_layout;
+	layouts[2] = r->vk_image_descriptor_set_layout;
+	layouts[3] = r->vk_image_descriptor_set_layout;
+
+	info.sType = VK_STRUCTURE_TYPE_PIPELINE_LAYOUT_CREATE_INFO;
+	info.pNext = NULL;
+	info.flags = 0;
+	info.setLayoutCount = SF_SIZE(layouts);
+	info.pSetLayouts = layouts;
+	info.pushConstantRangeCount = 0;
+	info.pPushConstantRanges = NULL;
+
+	if (!SF_VULKAN_CHECK(vkCreatePipelineLayout(r->vk_device, &info, r->vk_allocation_callbacks, &r->vk_general_pipeline_layout)))
+		r->vk_general_pipeline_layout = VK_NULL_HANDLE;
+}
+
+sf_private void sf_graphics_vulkan_global_descriptor_pool_init(struct sf_graphics_renderer *r) {
+	VkDescriptorPoolSize sizes[8] = {0};
+	VkDescriptorPoolCreateInfo info = {0};
+
+	sizes[0].type = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER;
+	sizes[0].descriptorCount = 256;
+
+	sizes[1].type = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER;
+	sizes[1].descriptorCount = 256;
+
+	sizes[2].type = VK_DESCRIPTOR_TYPE_STORAGE_BUFFER;
+	sizes[2].descriptorCount = 256;
+
+	sizes[3].type = VK_DESCRIPTOR_TYPE_STORAGE_IMAGE;
+	sizes[3].descriptorCount = 256;
+
+	sizes[4].type = VK_DESCRIPTOR_TYPE_SAMPLER;
+	sizes[4].descriptorCount = 256;
+
+	sizes[5].type = VK_DESCRIPTOR_TYPE_SAMPLED_IMAGE;
+	sizes[5].descriptorCount = 256;
+
+	sizes[6].type = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER_DYNAMIC;
+	sizes[6].descriptorCount = 256;
+
+	sizes[7].type = VK_DESCRIPTOR_TYPE_STORAGE_BUFFER_DYNAMIC;
+	sizes[7].descriptorCount = 256;
+
+	info.sType = VK_STRUCTURE_TYPE_DESCRIPTOR_POOL_CREATE_INFO;
+	info.pNext = NULL;
+	info.flags = VK_DESCRIPTOR_POOL_CREATE_FREE_DESCRIPTOR_SET_BIT;
+	info.maxSets = 256 * SF_SIZE(sizes);
+	info.poolSizeCount = SF_SIZE(sizes);
+	info.pPoolSizes = sizes;
+
+	if (!SF_VULKAN_CHECK(vkCreateDescriptorPool(r->vk_device, &info, r->vk_allocation_callbacks, &r->vk_global_descriptor_pool)))
+		r->vk_global_descriptor_pool = VK_NULL_HANDLE;
+}
+
+
 sf_public void sf_graphics_renderer_deinit(struct sf_graphics_renderer *r) {
 	if (!r)
 		return;
 
+	sf_graphics_vulkan_pipeline_layouts_deinit(r);
+	sf_graphics_vulkan_descriptor_set_layouts_deinit(r);
 	sf_graphics_vulkan_swapchain_resources_deinit(r);
 
 	if (r->vk_device) {
+		if (r->vk_global_descriptor_pool) {
+			vkDestroyDescriptorPool(r->vk_device, r->vk_global_descriptor_pool, r->vk_allocation_callbacks);
+			r->vk_global_descriptor_pool = VK_NULL_HANDLE;
+		}
+
 		vkDestroyDevice(r->vk_device, r->vk_allocation_callbacks);
 		r->vk_device = VK_NULL_HANDLE;
 	}
@@ -2503,12 +3224,16 @@ sf_public struct sf_graphics_renderer *sf_graphics_renderer_init(struct sf_arena
 
 	r->plataform_data = info->plataform_data;
 
-	sf_arena_scratch(arena, SF_KB(10), &r->swapchain_arena);
-	if (!r->swapchain_arena.data)
+	sf_arena_scratch(arena, SF_KB(20), &r->arena);
+	if (!r->arena.data)
 		goto error;
 
 	sf_graphics_vulkan_instance_init(arena, r, info);
 	if (!r->vk_instance)
+		goto error;
+
+	sf_graphics_vulkan_load_functions(r);
+	if (!r->vk_write_sampler_descriptors_ext)
 		goto error;
 
 	if (info->vk_request_enable_validation_layers) {
@@ -2539,81 +3264,23 @@ sf_public struct sf_graphics_renderer *sf_graphics_renderer_init(struct sf_arena
 	if (!r->vk_swapchain)
 		goto error;
 
+	sf_graphics_vulkan_descriptor_set_layouts_init(r);
+	if (!r->vk_image_descriptor_set_layout || !r->vk_uniform_descriptor_set_layout || !r->vk_dynamic_uniform_descriptor_set_layout)
+		goto error;
+
+	sf_graphics_vulkan_pipeline_layouts_init(r);
+	if (!r->vk_general_pipeline_layout)
+		goto error;
+
+	sf_graphics_vulkan_global_descriptor_pool_init(r);
+	if (!r->vk_global_descriptor_pool)
+		goto error;
+
 	return r;
 
 error:
 	sf_graphics_renderer_deinit(r);
 	return NULL;
-}
-
-sf_private u64 sf_graphics_stride_from_format(enum sf_graphics_format format) {
-	switch (format) {
-		// 1 channel
-		case SF_GRAPHICS_FORMAT_R8_UNORM:
-			return 1;
-		case SF_GRAPHICS_FORMAT_R16_UNORM:
-			return 2;
-		case SF_GRAPHICS_FORMAT_R16_UINT:
-			return 2;
-		case SF_GRAPHICS_FORMAT_R16_SFLOAT:
-			return 2;
-		case SF_GRAPHICS_FORMAT_R32_UINT:
-			return 4;
-		case SF_GRAPHICS_FORMAT_R32_SFLOAT:
-			return 4;
-		// 2 CHANNEL
-		case SF_GRAPHICS_FORMAT_R8G8_UNORM:
-			return 2;
-		case SF_GRAPHICS_FORMAT_R16G16_UNORM:
-			return 4;
-		case SF_GRAPHICS_FORMAT_R16G16_SFLOAT:
-			return 4;
-		case SF_GRAPHICS_FORMAT_R32G32_UINT:
-			return 8;
-		case SF_GRAPHICS_FORMAT_R32G32_SFLOAT:
-			return 8;
-		// 3 CHANNEL
-		case SF_GRAPHICS_FORMAT_R8G8B8_UNORM:
-			return 3;
-		case SF_GRAPHICS_FORMAT_R16G16B16_UNORM:
-			return 6;
-		case SF_GRAPHICS_FORMAT_R16G16B16_SFLOAT:
-			return 6;
-		case SF_GRAPHICS_FORMAT_R32G32B32_UINT:
-			return 12;
-		case SF_GRAPHICS_FORMAT_R32G32B32_SFLOAT:
-			return 12;
-		// 4 CHANNEL
-		case SF_GRAPHICS_FORMAT_B8G8R8A8_UNORM:
-			return 4;
-		case SF_GRAPHICS_FORMAT_R8G8B8A8_UNORM:
-			return 4;
-		case SF_GRAPHICS_FORMAT_R16G16B16A16_UNORM:
-			return 8;
-		case SF_GRAPHICS_FORMAT_R16G16B16A16_SFLOAT:
-			return 8;
-		case SF_GRAPHICS_FORMAT_R32G32B32A32_UINT:
-			return 16;
-		case SF_GRAPHICS_FORMAT_R32G32B32A32_SFLOAT:
-			return 16;
-		// DEPTH/STENCIL
-		case SF_GRAPHICS_FORMAT_D16_UNORM:
-			return 0;
-		case SF_GRAPHICS_FORMAT_X8_D24_UNORM_PACK32:
-			return 0;
-		case SF_GRAPHICS_FORMAT_D32_SFLOAT:
-			return 0;
-		case SF_GRAPHICS_FORMAT_S8_UINT:
-			return 0;
-		case SF_GRAPHICS_FORMAT_D16_UNORM_S8_UINT:
-			return 0;
-		case SF_GRAPHICS_FORMAT_D24_UNORM_S8_UINT:
-			return 0;
-		case SF_GRAPHICS_FORMAT_D32_SFLOAT_S8_UINT:
-			return 0;
-		default:
-			return 0;
-	}
 }
 
 // NOTE(samuel): taken from the vulkan header as reference.
@@ -2645,6 +3312,146 @@ sf_private VkDescriptorType sf_graphics_vulkan_descriptor_type_from_type(enum sf
 			return VK_DESCRIPTOR_TYPE_INPUT_ATTACHMENT;
 		default:
 			return VK_DESCRIPTOR_TYPE_MAX_ENUM;
+	}
+}
+
+sf_public void sf_graphics_begin_frame(struct sf_graphics_renderer *r) {
+	// https://docs.vulkan.org/guide/latest/swapchain_semaphore_reuse.html
+	VkResult result = 0;
+	u32 current_frame_index = 0;
+	u32 current_image_index = 0;
+	VkFence current_in_flight_fence = VK_NULL_HANDLE;
+	VkSemaphore current_image_acquired_semaphore = VK_NULL_HANDLE;
+	struct sf_graphics_command_buffer *current_command_buffer = NULL;
+	VkCommandBufferBeginInfo command_buffer_begin_info = {0};
+	VkClearValue clear_values[2] = {0};
+	struct sf_graphics_render_target *current_render_target = NULL;
+	VkRenderPassBeginInfo render_pass_begin_info = {0};
+	VkViewport viewport = {0};
+	VkRect2D scissor = {0};
+
+	current_frame_index = r->vk_swapchain_current_frame_index;
+	current_in_flight_fence = r->vk_swapchain_in_flight_fences[current_frame_index];
+	current_command_buffer = sf_graphics_command_buffer_from_handle(r, r->main_command_buffers[current_frame_index]);
+	current_image_acquired_semaphore = r->vk_swapchain_image_acquired_semaphores[current_frame_index];
+
+	vkWaitForFences(r->vk_device, 1, &current_in_flight_fence, VK_TRUE, (uint64_t)-1);
+	vkResetFences(r->vk_device, 1, &current_in_flight_fence);
+	vkResetCommandPool(r->vk_device, current_command_buffer->vk_command_pool, 0);
+
+	result = vkAcquireNextImageKHR(r->vk_device, r->vk_swapchain, (u64)-1, current_image_acquired_semaphore, VK_NULL_HANDLE, &r->vk_swapchain_current_image_index);
+	if (result == VK_ERROR_OUT_OF_DATE_KHR || result == VK_ERROR_SURFACE_LOST_KHR) {
+		SF_VULKAN_CHECK(result);
+		vkDeviceWaitIdle(r->vk_device);
+		sf_graphics_vulkan_swapchain_resources_deinit(r);
+		sf_graphics_vulkan_swapchain_resources_init(&r->swapchain_arena, r);
+		r->swapchain_skip_end_frame = SF_TRUE;
+		return;
+	}
+
+	current_image_index = r->vk_swapchain_current_image_index;
+	current_render_target = sf_graphics_render_target_from_handle(r, r->swapchain_render_targets[current_image_index]);
+
+	command_buffer_begin_info.sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_BEGIN_INFO;
+	command_buffer_begin_info.pNext = NULL;
+	command_buffer_begin_info.flags = VK_COMMAND_BUFFER_USAGE_ONE_TIME_SUBMIT_BIT;
+	command_buffer_begin_info.pInheritanceInfo = NULL;
+
+	vkBeginCommandBuffer(current_command_buffer->vk_command_buffer, &command_buffer_begin_info);
+
+	clear_values[0].color.float32[0] = current_render_target->color_clear_value.data.rgba.r;
+	clear_values[0].color.float32[1] = current_render_target->color_clear_value.data.rgba.g;
+	clear_values[0].color.float32[2] = current_render_target->color_clear_value.data.rgba.b;
+	clear_values[0].color.float32[3] = current_render_target->color_clear_value.data.rgba.a;
+	clear_values[1].depthStencil.depth = current_render_target->depth_stencil_clear_value.data.depth_stencil.depth;	  // 1.0F
+	clear_values[1].depthStencil.stencil = current_render_target->depth_stencil_clear_value.data.depth_stencil.stencil; // 0.0F
+
+	render_pass_begin_info.sType = VK_STRUCTURE_TYPE_RENDER_PASS_BEGIN_INFO;
+	render_pass_begin_info.pNext = NULL;
+	render_pass_begin_info.renderPass = current_render_target->vk_render_pass;
+	render_pass_begin_info.framebuffer = current_render_target->vk_framebuffer;
+	render_pass_begin_info.renderArea.offset.x = 0;
+	render_pass_begin_info.renderArea.offset.y = 0;
+	render_pass_begin_info.renderArea.extent.width = current_render_target->width;
+	render_pass_begin_info.renderArea.extent.height = current_render_target->height;
+
+	render_pass_begin_info.clearValueCount = SF_SIZE(clear_values);
+	render_pass_begin_info.pClearValues = clear_values;
+
+	vkCmdBeginRenderPass(current_command_buffer->vk_command_buffer, &render_pass_begin_info, VK_SUBPASS_CONTENTS_INLINE);
+
+	viewport.x = 0.0F;
+	viewport.y = 0.0F;
+	viewport.width = (float)current_render_target->width;
+	viewport.height = (float)current_render_target->height;
+	viewport.minDepth = 0.0F;
+	viewport.maxDepth = 0.0F;
+
+	vkCmdSetViewport(current_command_buffer->vk_command_buffer, 0, 1, &viewport);
+
+	scissor.offset.x = 0;
+	scissor.offset.y = 0;
+	scissor.extent.width = current_render_target->width;
+	scissor.extent.height = current_render_target->height;
+
+	vkCmdSetScissor(current_command_buffer->vk_command_buffer, 0, 1, &scissor);
+}
+
+sf_public void sf_graphics_end_frame(struct sf_graphics_renderer *r) {
+	u32 current_frame_index = 0;
+	struct sf_graphics_command_buffer *current_command_buffer = NULL;
+	u32 current_image_index = 0;
+	VkSemaphore current_draw_complete_semaphore = VK_NULL_HANDLE;
+	VkSemaphore current_image_acquired_semaphore = VK_NULL_HANDLE;
+	VkFence current_in_flight_fence = VK_NULL_HANDLE;
+	VkPipelineStageFlags stage = VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT;
+	VkSubmitInfo submit_info = {0};
+	VkPresentInfoKHR present_info = {0};
+	VkResult result = VK_SUCCESS;
+
+	if (r->swapchain_skip_end_frame) {
+		r->swapchain_skip_end_frame = SF_FALSE;
+		return;
+	}
+	current_frame_index = r->vk_swapchain_current_image_index;
+	current_command_buffer = sf_graphics_command_buffer_from_handle(r, r->main_command_buffers[current_frame_index]);
+
+	current_image_index = r->vk_swapchain_current_frame_index;
+	current_draw_complete_semaphore = r->vk_swapchain_draw_complete_semaphores[current_image_index];
+	current_image_acquired_semaphore = r->vk_swapchain_image_acquired_semaphores[current_frame_index];
+	current_in_flight_fence = r->vk_swapchain_in_flight_fences[current_frame_index];
+	stage = VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT;
+
+	vkCmdEndRenderPass(current_command_buffer->vk_command_buffer);
+	vkEndCommandBuffer(current_command_buffer->vk_command_buffer);
+
+	submit_info.sType = VK_STRUCTURE_TYPE_SUBMIT_INFO;
+	submit_info.pNext = NULL;
+	submit_info.waitSemaphoreCount = 1;
+	submit_info.pWaitSemaphores = &current_image_acquired_semaphore;
+	submit_info.pWaitDstStageMask = &stage;
+	submit_info.commandBufferCount = 1;
+	submit_info.pCommandBuffers = &current_command_buffer->vk_command_buffer;
+	submit_info.signalSemaphoreCount = 1;
+	submit_info.pSignalSemaphores = &current_draw_complete_semaphore;
+
+	vkQueueSubmit(r->vk_graphics_queue, 1, &submit_info, current_in_flight_fence);
+
+	present_info.sType = VK_STRUCTURE_TYPE_PRESENT_INFO_KHR;
+	present_info.pNext = NULL;
+	present_info.waitSemaphoreCount = 1;
+	present_info.pWaitSemaphores = &current_draw_complete_semaphore;
+	present_info.swapchainCount = 1;
+	present_info.pSwapchains = &r->vk_swapchain;
+	present_info.pImageIndices = &current_image_index;
+	present_info.pResults = NULL;
+
+	result = vkQueuePresentKHR(r->vk_present_queue, &present_info);
+	if (result == VK_ERROR_OUT_OF_DATE_KHR || result == VK_SUBOPTIMAL_KHR) {
+		SF_VULKAN_CHECK(result);
+		vkDeviceWaitIdle(r->vk_device);
+		sf_graphics_vulkan_swapchain_resources_deinit(r);
+		sf_graphics_vulkan_swapchain_resources_init(&r->swapchain_arena, r);
 	}
 }
 
@@ -2745,7 +3552,7 @@ sf_public void sf_graphics_glfw_platform_fill_renderer_info(struct sf_arena *are
 	sf_local_persist char const *validation_layers[] = {"VK_LAYER_KHRONOS_validation"};
 	sf_local_persist char const *device_extensions[] = {
 	    VK_KHR_SWAPCHAIN_EXTENSION_NAME,
-	    "VK_EXT_descriptor_heap"
+
 #ifdef __APPLE__
 	    , "VK_KHR_portability_subset"
 #endif
@@ -2767,9 +3574,9 @@ sf_public void sf_graphics_glfw_platform_fill_renderer_info(struct sf_arena *are
 	base_instance_extensions = glfwGetRequiredInstanceExtensions(&base_instance_extension_count);
 
 #ifdef __APPLE__
-	required_instance_extension_count = base_instance_extension_count + 3;
+	required_instance_extension_count = base_instance_extension_count + 4;
 #else
-	required_instance_extension_count = base_instance_extension_count + 1;
+	required_instance_extension_count = base_instance_extension_count + 3;
 #endif
 	info->vk_instance_extensions = sf_arena_allocate(arena, (required_instance_extension_count) * sizeof(char const *));
 	if (info->vk_instance_extensions) {
@@ -2779,10 +3586,11 @@ sf_public void sf_graphics_glfw_platform_fill_renderer_info(struct sf_arena *are
 		for (i = 0; i < base_instance_extension_count; ++i)
 			info->vk_instance_extensions[i] = base_instance_extensions[i];
 
-		info->vk_instance_extensions[base_instance_extension_count + 0] = VK_EXT_DEBUG_UTILS_EXTENSION_NAME;
+		info->vk_instance_extensions[base_instance_extension_count + 0] = VK_KHR_GET_SURFACE_CAPABILITIES_2_EXTENSION_NAME;
+		info->vk_instance_extensions[base_instance_extension_count + 1] = VK_EXT_DEBUG_UTILS_EXTENSION_NAME;
+		info->vk_instance_extensions[base_instance_extension_count + 2] = VK_KHR_GET_PHYSICAL_DEVICE_PROPERTIES_2_EXTENSION_NAME;
 #ifdef __APPLE__
-		info->vk_instance_extensions[base_instance_extension_count + 1] = "VK_KHR_portability_enumeration";
-		info->vk_instance_extensions[base_instance_extension_count + 2] = "VK_KHR_get_physical_device_properties2";
+		info->vk_instance_extensions[base_instance_extension_count + 3] = "VK_KHR_portability_enumeration";
 #endif
 	}
 

@@ -15,6 +15,7 @@
 #define SF_GB(n) ((n) * 1024 * 1024 * 1024)
 #define SF_UNUSED(x) (void)(x)
 
+#define SF_STATIC_ASSERT(e, msg) typedef char sf_static_assert_##msg[(e) ? 1 : -1]
 
 #ifndef NULL
 #define NULL ((void *)0)
