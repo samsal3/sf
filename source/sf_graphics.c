@@ -1053,10 +1053,19 @@ sf_private VkFormat sf_graphics_vulkan_get_format_from_format(enum sf_graphics_f
 }
 
 sf_private void sf_graphics_update_swapchain_dimensions(struct sf_graphics_device *device, struct sf_graphics_swapchain *swapchain) {
-	if (!swapchain || !device->info.request_surface_dimensions)
+	if (!device || !device->vk.physical_device || !device->vk.surface || !swapchain || !device->info.request_surface_dimensions)
 		return;
 
+	swapchain->width = 0;
+	swapchain->height = 0;
+
+	if (!SF_VULKAN_CHECK(vkGetPhysicalDeviceSurfaceCapabilitiesKHR(device->vk.physical_device, device->vk.surface, &device->vk.physical_device_surface_capabilities)))
+		return
+
 	device->info.request_surface_dimensions(device->info.plataform_data,  &swapchain->width, &swapchain->height);
+
+	swapchain->width = SF_CLAMP(swapchain->width, device->vk.physical_device_surface_capabilities.minImageExtent.width, device->vk.physical_device_surface_capabilities.maxImageExtent.width);
+	swapchain->height = SF_CLAMP(swapchain->height, device->vk.physical_device_surface_capabilities.minImageExtent.height, device->vk.physical_device_surface_capabilities.maxImageExtent.height);
 }
 
 
@@ -3604,7 +3613,7 @@ sf_public struct sf_graphics_context *sf_graphics_init_context(struct sf_arena *
 
 	context->current_swapchain_arena_index = 0;
 
-	default_bound_image_path = SF_STRING("resources/test.jpg");
+	default_bound_image_path = SF_STRING("resources\\test.jpg");
 	context->default_bound_image = sf_graphics_device_init_image_from_file(&context->arena, context->device, &default_bound_image_path);
 	if (!context->default_bound_image)
 		goto error;

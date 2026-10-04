@@ -92,8 +92,9 @@ sf_private void sf_os_request_surface_dimension(void *data, u32 *width, u32 *hei
 	if (!window)
 		return;
 
-	*width = window->width;
-	*height = window->height;
+
+	*width = (u32)window->width;
+	*height = (u32)window->height;
 }
 
 sf_public void sf_os_fill_graphics_init_context_info(struct sf_arena *arena, struct sf_os_window *window, struct sf_graphics_init_context_info *info) {
