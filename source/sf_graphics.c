@@ -95,7 +95,8 @@ sf_private char const *sf_graphics_get_string_from_vulkan_result(VkResult vk_res
 
 sf_private sf_bool sf_graphics_vulkan_check_result(VkResult result, char const *what, int line, char const *file) {
 	char const *result_string = sf_graphics_get_string_from_vulkan_result(result);
-	fprintf(stderr, "%s - %s - %s:%i\n", result_string, what, file, line);
+	if (result != VK_SUCCESS)
+		fprintf(stderr, "%s - %s - %s:%i\n", result_string, what, file, line);
 	return result == VK_SUCCESS;
 }
 
@@ -2902,7 +2903,7 @@ sf_private void sf_graphics_device_deinit_swapchain(struct sf_graphics_device *d
 	}
 }
 
-sf_private struct sf_graphics_swapchain *sf_graphics_device_init_swapchain(struct sf_arena *arena, struct sf_graphics_device *device, struct sf_graphics_init_swapchain_info *init_info) {
+sf_private struct sf_graphics_swapchain *sf_graphics_device_init_swapchain(struct sf_arena *arena, struct sf_graphics_device *device, struct sf_graphics_swapchain *old_swapchain, struct sf_graphics_init_swapchain_info *init_info) {
 	u32 i = 0;
 	VkPresentModeKHR vk_present_mode = VK_PRESENT_MODE_FIFO_KHR;
 	VkSurfaceFormatKHR vk_surface_format = {0};
@@ -2977,7 +2978,7 @@ sf_private struct sf_graphics_swapchain *sf_graphics_device_init_swapchain(struc
 		info.compositeAlpha = VK_COMPOSITE_ALPHA_OPAQUE_BIT_KHR;
 		info.presentMode = swapchain->vk.present_mode;
 		info.clipped = VK_TRUE;
-		info.oldSwapchain = VK_NULL_HANDLE;
+		info.oldSwapchain = old_swapchain ? old_swapchain->vk.swapchain : VK_NULL_HANDLE;
 
 		if (!SF_VULKAN_CHECK(vkCreateSwapchainKHR(device->vk.device, &info, device->vk.allocation_callbacks, &swapchain->vk.swapchain))) {
 			swapchain->vk.swapchain = VK_NULL_HANDLE;
@@ -3591,14 +3592,15 @@ sf_public struct sf_graphics_context *sf_graphics_init_context(struct sf_arena *
 	if (!context->swapchain_arenas[1].data)
 		goto error;
 
-	context->swapchain = sf_graphics_device_init_swapchain(&context->swapchain_arenas[0], context->device, &init_info->swapchain_info);
+	context->swapchain = sf_graphics_device_init_swapchain(&context->swapchain_arenas[0], context->device, NULL, &init_info->swapchain_info);
 	if (!context->swapchain)
-
 		goto error;
+
 	sf_graphics_context_init_frames(&context->arena, context, init_info->buffering_count);
 	if (!context->frame_count)
 		goto error;
-	
+
+	context->current_swapchain_arena_index = 0;
 
 	default_bound_image_path = SF_STRING("resources/test.jpg");
 	context->default_bound_image = sf_graphics_device_init_image_from_file(&context->arena, context->device, &default_bound_image_path);
@@ -3621,18 +3623,28 @@ sf_private struct sf_graphics_semaphore *sf_graphics_get_current_swapchain_semap
 	return swapchain->draw_complete_semaphores[swapchain->current_image_index];
 }
 
-sf_private struct sf_graphics_render_target *sf_graphics_acquire_next_swapchain_render_target(struct sf_graphics_device *device, struct sf_graphics_swapchain *swapchain) {
+sf_private struct sf_graphics_frame *sf_graphics_get_current_frame(struct sf_graphics_context *context) {
+	return context->frames[context->current_frame_index];
+}
+ 
+sf_private struct sf_graphics_render_target *sf_graphics_acquire_next_swapchain_render_target(struct sf_graphics_context *context) {
 	VkResult vk_result = 0;
-	struct sf_graphics_semaphore *semaphore = NULL;
+	struct sf_graphics_frame *frame = NULL;
+	struct sf_graphics_device *device = NULL;
+	struct sf_graphics_swapchain *swapchain = NULL;
 
-	if (!device->vk.device || !swapchain->vk.swapchain)
+	if (!context || !context->device || !context->device->vk.device || !context->swapchain || !context->swapchain->vk.swapchain)
 		return NULL;
 
-	semaphore = sf_graphics_get_current_swapchain_semaphore(swapchain);
+	device = context->device;
+	swapchain = context->swapchain;
+	frame = sf_graphics_get_current_frame(context);
 
-	vk_result = vkAcquireNextImageKHR(device->vk.device, swapchain->vk.swapchain, (u64)-1, semaphore->vk.semaphore, VK_NULL_HANDLE, &swapchain->current_image_index);
-	if (vk_result == VK_ERROR_OUT_OF_DATE_KHR || vk_result == VK_ERROR_SURFACE_LOST_KHR) {
-		swapchain->requires_rebuild = SF_TRUE;
+	vk_result = vkAcquireNextImageKHR(device->vk.device, swapchain->vk.swapchain, (u64)-1, frame->image_acquired_semaphore->vk.semaphore, VK_NULL_HANDLE, &swapchain->current_image_index);
+	if (vk_result == VK_ERROR_OUT_OF_DATE_KHR) {
+		SF_VULKAN_CHECK(vk_result);
+		return NULL;
+	} else if (vk_result == VK_SUBOPTIMAL_KHR) {
 		return sf_graphics_get_current_swapchain_render_target(swapchain);
 	} else if (!SF_VULKAN_CHECK(vk_result)) {
 		return NULL;
@@ -3641,10 +3653,6 @@ sf_private struct sf_graphics_render_target *sf_graphics_acquire_next_swapchain_
 	}
 }
 
-sf_private struct sf_graphics_frame *sf_graphics_get_current_frame(struct sf_graphics_context *context) {
-	return context->frames[context->current_frame_index];
-}
- 
 sf_private void sf_graphics_prepare_next_frame(struct sf_graphics_context *context) {
 	context->current_frame_index = (context->current_frame_index + 1) % context->info.buffering_count;
 }
@@ -3664,27 +3672,23 @@ sf_private void sf_graphics_reset_fence(struct sf_graphics_device *device, struc
 }
 
 sf_private sf_bool sf_graphics_try_to_rebuild_swapchain(struct sf_graphics_context *context) {
-	struct sf_graphics_swapchain *new_swapchain = NULL;
 	u32 new_arena_index = 0;
+	struct sf_graphics_swapchain *new_swapchain = NULL;
 
 	if (!context || !context->device)
 		return SF_FALSE;
 
 	sf_graphics_device_wait_idle(context->device);
-	new_arena_index = (context->current_swapchain_arena_index + 1) % SF_SIZE(context->swapchain_arenas);
 
-	new_swapchain = sf_graphics_device_init_swapchain(&context->swapchain_arenas[new_arena_index], context->device, &context->info.swapchain_info);
-	if (!new_swapchain) 
+	new_arena_index = (context->current_swapchain_arena_index + 1) % SF_SIZE(context->swapchain_arenas);
+	new_swapchain = sf_graphics_device_init_swapchain(&context->swapchain_arenas[new_arena_index], context->device, context->swapchain, &context->info.swapchain_info);
+	if (!new_swapchain)
 		return SF_FALSE;
 
-	
-	printf("new swapchain created with dims %u, %u\n", context->swapchain->width, context->swapchain->height);
-
 	sf_graphics_device_deinit_swapchain(context->device, context->swapchain);
-	context->swapchain = new_swapchain;
-
 	sf_arena_clear(&context->swapchain_arenas[context->current_swapchain_arena_index]);
 
+	context->swapchain = new_swapchain;
 	context->current_swapchain_arena_index = new_arena_index;
 		
 	return SF_TRUE;
@@ -3700,25 +3704,20 @@ sf_public void sf_graphics_begin_frame(struct sf_graphics_context *context) {
 
 	frame = sf_graphics_get_current_frame(context);
 	sf_graphics_wait_for_fence(context->device, frame->in_flight_fence);
-	sf_graphics_reset_fence(context->device, frame->in_flight_fence);
-	sf_graphics_reset_command_buffer(context->device, frame->command_buffer);
 
-	render_target = sf_graphics_acquire_next_swapchain_render_target(context->device, context->swapchain);
-	if (context->swapchain->requires_rebuild || !render_target) {
-		sf_bool success = SF_FALSE;
-
-		success = sf_graphics_try_to_rebuild_swapchain(context);
-		(void)success; // FIXME(samuel): handle failure
-
+	render_target = sf_graphics_acquire_next_swapchain_render_target(context);
+	if (!render_target) {
+		sf_graphics_try_to_rebuild_swapchain(context);
 		context->skip_end_frame = SF_TRUE;
 		return;
 	}
 
+	sf_graphics_reset_fence(context->device, frame->in_flight_fence);
+	sf_graphics_reset_command_buffer(context->device, frame->command_buffer);
 	sf_graphics_begin_command_buffer(frame->command_buffer);
 	sf_graphics_command_begin_render_pass(context->device, frame->command_buffer, render_target);
 }
 
-// TODO(
 sf_public void sf_graphics_end_frame(struct sf_graphics_context *context) {
 	struct sf_graphics_frame *frame = NULL;
 	struct sf_graphics_semaphore *draw_complete_semaphore = NULL;
@@ -3730,7 +3729,6 @@ sf_public void sf_graphics_end_frame(struct sf_graphics_context *context) {
 		context->skip_end_frame = SF_FALSE;
 		return;
 	}
-
 
 	frame = sf_graphics_get_current_frame(context);
 	draw_complete_semaphore = sf_graphics_get_current_swapchain_semaphore(context->swapchain);
@@ -3752,7 +3750,7 @@ sf_public void sf_graphics_end_frame(struct sf_graphics_context *context) {
 		submit_info.signalSemaphoreCount = 1;
 		submit_info.pSignalSemaphores = &draw_complete_semaphore->vk.semaphore;
 
-		vkQueueSubmit(context->device->vk.graphics_queue, 1, &submit_info, frame->in_flight_fence->vk.fence);
+		SF_VULKAN_CHECK(vkQueueSubmit(context->device->vk.graphics_queue, 1, &submit_info, frame->in_flight_fence->vk.fence));
 	}
 
 	{

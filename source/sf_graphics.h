@@ -353,7 +353,6 @@ struct sf_graphics_swapchain {
 	struct sf_graphics_render_target *render_targets[SF_GRAPHICS_MAX_SWAPCHAIN_IMAGE_COUNT];
 
 	u32 current_image_index;
-	sf_bool requires_rebuild;
 
 	struct {
 		VkSwapchainKHR swapchain;

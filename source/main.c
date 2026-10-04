@@ -1,6 +1,7 @@
 #include <sf_graphics.h>
 
 #include <stdlib.h>
+#include <stdio.h>
 
 int main(void) {
 	struct sf_arena arena = {0};
@@ -31,7 +32,6 @@ int main(void) {
 	while (!sf_graphics_glfw_should_close(platform)) {
 		sf_graphics_begin_frame(context);
 		sf_graphics_end_frame(context);
-
 		sf_graphics_glfw_process_events(platform);
 	}
 
