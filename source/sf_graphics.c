@@ -1961,13 +1961,14 @@ sf_public void sf_graphics_command_begin_render_pass(struct sf_graphics_device *
 
 	{
 		VkRenderPassBeginInfo info = {0};
-
+#if 0
 		clear_values[0].color.float32[0] = 0.0F;
 		clear_values[0].color.float32[1] = 0.0F;
 		clear_values[0].color.float32[2] = 0.0F;
 		clear_values[0].color.float32[3] = 1.0F;
 		clear_values[1].depthStencil.depth = 1.0F;
 		clear_values[1].depthStencil.stencil = 0;
+#endif
 
 		info.sType = VK_STRUCTURE_TYPE_RENDER_PASS_BEGIN_INFO;
 		info.pNext = NULL;
@@ -3582,6 +3583,7 @@ sf_public struct sf_graphics_context *sf_graphics_init_context(struct sf_arena *
 	if (!context->device)
 		goto error;
 
+
 	context->current_swapchain_arena_index = 0;
 
 	sf_arena_scratch(&context->arena, SF_KB(64), &context->swapchain_arenas[0]);
@@ -3878,7 +3880,6 @@ sf_public void sf_graphics_command_bind_image_to_slot1(struct sf_graphics_contex
 }
 
 
-sf_public void sf_graphics_command_bind_image_to_slot1(struct sf_graphics_context *context, struct sf_graphics_image *image);
 
 sf_public void sf_graphics_command_draw_indexed(struct sf_graphics_context *context, u32 index_count, u32 instance_count, u32 first_index, i32 vertex_offset, u32 first_instance) {
 	struct sf_graphics_frame *frame = NULL;
@@ -3892,163 +3893,6 @@ sf_public void sf_graphics_command_draw_indexed(struct sf_graphics_context *cont
 
 	vkCmdDrawIndexed(frame->command_buffer->vk.command_buffer, index_count, instance_count, first_index, vertex_offset, first_instance);
 }
-
-sf_private void sf_graphics_glfw_platform_framebuffer_resize_callback(GLFWwindow *window, i32 width, i32 height) {
-	struct sf_graphics_glfw_platform *platform = (struct sf_graphics_glfw_platform *)glfwGetWindowUserPointer(window);
-
-	if (!platform)
-		return;
-
-	platform->window_width = width;
-	platform->window_height = height;
-}
-
-sf_public struct sf_graphics_glfw_platform *sf_graphics_init_glfw_platform(struct sf_arena *arena, i32 width, i32 height, struct sf_string const *title) {
-	struct sf_string window_title = {0};
-
-	struct sf_graphics_glfw_platform *platform = sf_arena_allocate(arena, sizeof(struct sf_graphics_glfw_platform));
-	if (!platform)
-		return NULL;
-
-	if (!glfwInit())
-		return NULL;
-
-	glfwWindowHint(GLFW_CLIENT_API, GLFW_NO_API);
-
-	sf_string_null_terminate(arena, title, &window_title);
-	platform->window = glfwCreateWindow(width, height, window_title.data, NULL, NULL);
-
-	if (!platform->window)
-		goto error;
-
-	glfwSetWindowUserPointer(platform->window, platform);
-	glfwSetFramebufferSizeCallback(platform->window, sf_graphics_glfw_platform_framebuffer_resize_callback);
-	glfwGetFramebufferSize(platform->window, &platform->window_width, &platform->window_height);
-
-	return platform;
-
-error:
-	sf_graphics_deinit_glfw_platform(platform);
-	return NULL;
-}
-
-sf_public void sf_graphics_deinit_glfw_platform(struct sf_graphics_glfw_platform *platform) {
-	if (!platform)
-		return;
-
-	if (platform->window) {
-		glfwDestroyWindow(platform->window);
-		platform->window = NULL;
-	}
-
-	platform->window_width = 0;
-	platform->window_height = 0;
-
-	glfwTerminate();
-}
-
-sf_public void sf_graphics_glfw_process_events(struct sf_graphics_glfw_platform *platform) {
-	if (!platform)
-		return;
-
-	glfwPollEvents();
-}
-
-sf_public sf_bool sf_graphics_glfw_should_close(struct sf_graphics_glfw_platform *platform) {
-	if (!platform)
-		return SF_FALSE;
-
-	return glfwWindowShouldClose(platform->window);
-}
-
-sf_private void sf_graphics_glfw_platform_init_surface(void *data, struct sf_graphics_device *device) {
-	struct sf_graphics_glfw_platform *platform = (struct sf_graphics_glfw_platform *)data;
-
-	if (!platform || !device || !device->vk.instance)
-		return;
-
-	if (!SF_VULKAN_CHECK(glfwCreateWindowSurface(device->vk.instance, platform->window, device->vk.allocation_callbacks, &device->vk.surface)))
-		device->vk.surface = VK_NULL_HANDLE;
-}
-
-sf_private void sf_graphics_glfw_platform_request_swapchain_dimensions(void *data, u32 *width, u32 *height) {
-	struct sf_graphics_glfw_platform *platform = (struct sf_graphics_glfw_platform *)data;
-
-	if (!platform)
-		return;
-
-	*width = platform->window_width;
-	*height = platform->window_height;
-}
-
-sf_public void sf_graphics_glfw_fill_init_context_info(struct sf_arena *arena, struct sf_graphics_glfw_platform *platform, struct sf_graphics_init_context_info *info) {
-	u32 base_instance_extension_count = 0;
-	char const **base_instance_extensions = NULL;
-
-	u32 required_instance_extension_count = 0;
-
-	sf_local_persist char const *validation_layers[] = {"VK_LAYER_KHRONOS_validation"};
-	sf_local_persist char const *device_extensions[] = {
-	    VK_KHR_SWAPCHAIN_EXTENSION_NAME
-
-#ifdef __APPLE__
-	    , "VK_KHR_portability_subset"
-#endif
-	};
-
-	if (!arena || !platform || !info)
-		return;
-
-	info->buffering_count = 2;
-	info->device_info.application_name = SF_STRING("test sf application!");
-	info->device_info.plataform_data = platform;
-	info->device_info.init_surface = sf_graphics_glfw_platform_init_surface;
-	info->device_info.request_surface_dimensions = sf_graphics_glfw_platform_request_swapchain_dimensions;
-	info->device_info.vk.request_enable_validation_layers = SF_TRUE;
-	info->device_info.vk.allocation_callbacks = NULL;
-	
-	info->swapchain_info.requested_image_count = 3;
-	info->swapchain_info.requested_enable_vsync = SF_TRUE;
-	info->swapchain_info.sample_count = SF_GRAPHICS_SAMPLE_COUNT_1;
-	info->swapchain_info.color_clear_value.type = SF_GRAPHICS_CLEAR_VALUE_TYPE_COLOR;
-	info->swapchain_info.color_clear_value.data.rgba.r = 0.0F;
-	info->swapchain_info.color_clear_value.data.rgba.g = 0.0F;
-	info->swapchain_info.color_clear_value.data.rgba.b = 0.0F;
-	info->swapchain_info.color_clear_value.data.rgba.a = 1.0F;
-
-	info->swapchain_info.depth_stencil_clear_value.type = SF_GRAPHICS_CLEAR_VALUE_TYPE_DEPTH_STENCIL;
-	info->swapchain_info.depth_stencil_clear_value.data.depth_stencil.depth = 1.0F;
-	info->swapchain_info.depth_stencil_clear_value.data.depth_stencil.stencil = 0.0F;
-
-	base_instance_extensions = glfwGetRequiredInstanceExtensions(&base_instance_extension_count);
-
-#ifdef __APPLE__
-	required_instance_extension_count = base_instance_extension_count + 3;
-#else
-	required_instance_extension_count = base_instance_extension_count + 1;
-#endif
-	info->device_info.vk.instance_extensions = sf_arena_allocate(arena, (required_instance_extension_count) * sizeof(char const *));
-	if (info->device_info.vk.instance_extensions) {
-		u32 i = 0;
-		info->device_info.vk.instance_extension_count = required_instance_extension_count;
-
-		for (i = 0; i < base_instance_extension_count; ++i)
-			info->device_info.vk.instance_extensions[i] = base_instance_extensions[i];
-
-		info->device_info.vk.instance_extensions[base_instance_extension_count + 0] = VK_EXT_DEBUG_UTILS_EXTENSION_NAME;
-#ifdef __APPLE__
-		info->device_info.vk.instance_extensions[base_instance_extension_count + 1] = "VK_KHR_portability_enumeration";
-		info->device_info.vk.instance_extensions[base_instance_extension_count + 2] = "VK_KHR_get_physical_device_properties2";
-#endif
-	}
-
-	info->device_info.vk.instance_layer_count = SF_SIZE(validation_layers);
-	info->device_info.vk.instance_layers = validation_layers;
-
-	info->device_info.vk.device_extension_count = SF_SIZE(device_extensions);
-	info->device_info.vk.device_extensions = device_extensions;
-}
-
 sf_public struct sf_graphics_pipeline *sf_graphics_init_pipeline(struct sf_graphics_context *context, struct sf_graphics_init_pipeline_info const *info) {
 	if (!context || !info)
 		return NULL;

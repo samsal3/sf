@@ -478,13 +478,6 @@ struct sf_graphics_vertex {
 };
 
 
-struct sf_graphics_glfw_platform {
-	GLFWwindow *window;
-	i32 window_width;
-	i32 window_height;
-};
-
-
 sf_public struct sf_graphics_context *sf_graphics_init_context(struct sf_arena *arena, struct sf_graphics_init_context_info *init_info);
 sf_public void sf_graphics_deinit_context(struct sf_graphics_context *context);
 
@@ -508,12 +501,5 @@ sf_public void sf_graphics_command_bind_image_to_slot0(struct sf_graphics_contex
 sf_public void sf_graphics_command_bind_image_to_slot1(struct sf_graphics_context *context, struct sf_graphics_image *image);
 
 sf_public void sf_graphics_command_draw_indexed(struct sf_graphics_context *context, u32 index_count, u32 instance_count, u32 first_index, i32 vertex_offset, u32 first_instance);
-
-sf_public struct sf_graphics_glfw_platform *sf_graphics_init_glfw_platform(struct sf_arena *arena, i32 width, i32 height, struct sf_string const *title);
-sf_public void sf_graphics_deinit_glfw_platform(struct sf_graphics_glfw_platform *platform);
-
-sf_public void sf_graphics_glfw_process_events(struct sf_graphics_glfw_platform *platform);
-sf_public sf_bool sf_graphics_glfw_should_close(struct sf_graphics_glfw_platform *platform);
-sf_public void sf_graphics_glfw_fill_init_context_info(struct sf_arena *arena, struct sf_graphics_glfw_platform *platform, struct sf_graphics_init_context_info *info);
 
 #endif

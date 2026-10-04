@@ -5,4 +5,6 @@ target_sources(${PROJECT_NAME} PRIVATE
 	"sf_graphics.h"
 	"sf_image.c"
 	"sf_image.h"
+	"sf_os.c"
+	"sf_os.h"
 )
