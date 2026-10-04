@@ -3,44 +3,40 @@
 #include <stdlib.h>
 
 int main(void) {
-	sf_handle test_image = SF_NULL_HANDLE;
 	struct sf_arena arena = {0};
 	struct sf_graphics_glfw_platform *platform = NULL;
 	struct sf_string title = {0};
 	struct sf_string source = {0};
-	struct sf_graphics_renderer_info info = {0};
-	struct sf_graphics_renderer *renderer = NULL;
+	struct sf_graphics_init_context_info info = {0};
+	struct sf_graphics_context *context = NULL;
 
 	arena.alignment = 16;
-	arena.capacity = 1024 * 1024 * 16;
-	arena.data = malloc(1024 * 1024);
+	arena.capacity = SF_MB(16);
+	arena.data = malloc(SF_MB(16));
 	if (!arena.data)
 		return 0;
 
-	title.data = "sf_graphics test";
-	title.size = sizeof("sf_graphics test");
+	title = SF_STRING("sf_graphics test");
+	source = SF_STRING("resources\\test.jpg");
 
-	source.data = "resources\\test.jpg";
-	source.size = sizeof("resources\\test.jpg");
-
-	platform = sf_graphics_glfw_platform_init(&arena, 800, 600, &title);
+	platform = sf_graphics_init_glfw_platform(&arena, 800, 600, &title);
 	if (!platform)
 		goto error;
 
-	sf_graphics_glfw_platform_fill_renderer_info(&arena, platform, &info);
-	renderer = sf_graphics_renderer_init(&arena, &info);
-	if (!renderer)
+	sf_graphics_glfw_fill_init_context_info(&arena, platform, &info);
+	context = sf_graphics_init_context(&arena, &info);
+	if (!context)
 		goto error;
 
-	test_image = sf_graphics_image_init_from_file(renderer, &source);
+	while (!sf_graphics_glfw_should_close(platform)) {
+		sf_graphics_begin_frame(context);
+		sf_graphics_end_frame(context);
 
-	while (!sf_graphics_glfw_platform_should_close(platform)) {
-		sf_graphics_glfw_platform_process_events(platform);
+		sf_graphics_glfw_process_events(platform);
 	}
 
 error:
-	sf_graphics_image_deinit(renderer, test_image);
-	sf_graphics_renderer_deinit(renderer);
-	sf_graphics_glfw_platform_deinit(platform);
+	sf_graphics_deinit_context(context);
+	sf_graphics_deinit_glfw_platform(platform);
 	free(arena.data);
 }

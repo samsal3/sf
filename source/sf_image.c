@@ -1,13 +1,16 @@
 #include "sf_image.h"
 
+#include "sf_graphics.h"
+
 #include <stb_image.h>
 
-sf_private enum sf_image_channels sf_image_channels_from_stb(int stb_channels) {
+
+sf_private enum sf_graphics_format sf_image_channels_from_stb(int stb_channels) {
 	switch (stb_channels) {
 		case 1:
 			return SF_GRAPHICS_FORMAT_R8_UNORM;
 		case 3:
-			return SF_GRAPHICS_FORMAT_R8G8_UNORM;
+			return SF_GRAPHICS_FORMAT_R8G8B8A8_UNORM;
 		case 4:
 			return SF_GRAPHICS_FORMAT_R8G8B8A8_UNORM;
 		default:
@@ -15,8 +18,7 @@ sf_private enum sf_image_channels sf_image_channels_from_stb(int stb_channels) {
 	}
 }
 
-
-sf_public void *sf_image_load_from_file(struct sf_arena *arena, struct sf_string *path, u32 *width, u32 *height, enum sf_graphics_format *format) {
+sf_public void *sf_image_load_from_file(struct sf_arena *arena, struct sf_string const *path, u32 *width, u32 *height, enum sf_graphics_format *format) {
 	struct sf_string null_terminated_path = {0};
 	int loaded_width = 0;
 	int loaded_height = 0;
@@ -34,7 +36,7 @@ sf_public void *sf_image_load_from_file(struct sf_arena *arena, struct sf_string
 	if (!null_terminated_path.data)
 		return NULL;
 
-	data =  stbi_load(&null_terminated_path.data, &loaded_width, &loaded_height, &loaded_channels, 0);
+	data =  stbi_load(null_terminated_path.data, &loaded_width, &loaded_height, &loaded_channels, 4);
 	if (!data)
 		return NULL;
 

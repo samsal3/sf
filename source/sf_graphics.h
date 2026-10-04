@@ -5,6 +5,7 @@
 
 #include <vulkan/vulkan.h>
 #include <GLFW/glfw3.h>
+#include <cglm/cglm.h>
 
 #define SF_GRAPHICS_MAX_GARBAGE_ITEM_COUNT 64
 #define SF_GRAPHICS_MAX_FRAMES_IN_FLIGHT_COUNT 3
@@ -26,6 +27,8 @@ typedef uintptr_t sf_handle;
 struct sf_graphics_resource_base {
 	sf_bool is_occupied;
 };
+
+#define SF_GRAPHICS_CALCULATE_MIPS (u32)-1
 
 enum sf_graphics_format {
 	SF_GRAPHICS_FORMAT_UNDEFINED,
@@ -51,6 +54,7 @@ enum sf_graphics_format {
 	// 4 channel
 	SF_GRAPHICS_FORMAT_B8G8R8A8_UNORM,
 	SF_GRAPHICS_FORMAT_B8G8R8A8_SRGB,
+	SF_GRAPHICS_FORMAT_R8G8B8A8_SRGB,
 	SF_GRAPHICS_FORMAT_R8G8B8A8_UNORM,
 	SF_GRAPHICS_FORMAT_R16G16B16A16_UNORM,
 	SF_GRAPHICS_FORMAT_R16G16B16A16_SFLOAT,
@@ -140,11 +144,162 @@ enum sf_graphics_command_buffer_usage {
 };
 typedef u32 sf_graphics_command_buffer_usage_flags;
 
-struct sf_graphics_glfw_platform {
-	GLFWwindow *window;
-	i32 window_width;
-	i32 window_height;
+
+struct sf_graphics_device;
+
+typedef void (*sf_graphics_init_surface_callback)(void *data, struct sf_graphics_device *device);
+typedef void (*sf_graphics_request_surface_dimensions_callback)(void *data, u32 *width, u32 *height);
+
+struct sf_graphics_init_device_info {
+	struct sf_string application_name;
+
+	void *plataform_data;
+	sf_graphics_init_surface_callback init_surface;
+	sf_graphics_request_surface_dimensions_callback request_surface_dimensions;
+
+	struct {
+		sf_bool request_enable_validation_layers;
+
+		u32 instance_extension_count;
+		char const **instance_extensions;
+
+		u32 instance_layer_count;
+		char const **instance_layers;
+
+		u32 device_extension_count;
+		char const **device_extensions;
+		
+		VkAllocationCallbacks const *allocation_callbacks;
+	} vk;
 };
+
+struct sf_graphics_device {
+	struct sf_graphics_init_device_info info;
+
+	struct {
+		VkAllocationCallbacks const *allocation_callbacks;
+		VkInstance instance;
+		VkDebugUtilsMessengerEXT validation_messenger;
+		VkSurfaceKHR surface;
+
+		VkPhysicalDevice physical_device;
+		VkPhysicalDeviceProperties physical_device_properties;
+		VkPhysicalDeviceFeatures physical_device_features;
+		VkDevice device;
+
+		u32 graphics_queue_family_index;
+		u32 present_queue_family_index;
+		u32 compute_queue_family_index;
+
+		VkQueue graphics_queue;
+		VkQueue present_queue;
+		VkQueue compute_queue;
+
+		VkSurfaceCapabilitiesKHR physical_device_surface_capabilities;
+
+		VkDescriptorPool global_descriptor_pool;
+		VkDescriptorSetLayout image_descriptor_set_layout;
+		VkDescriptorSetLayout uniform_descriptor_set_layout;
+		VkDescriptorSetLayout dynamic_uniform_descriptor_set_layout;
+		VkPipelineLayout general_pipeline_layout;
+		VkSampler linear_sampler;
+
+		PFN_vkCreateDebugUtilsMessengerEXT create_debug_utils_messenger_ext;
+		PFN_vkDestroyDebugUtilsMessengerEXT destroy_debug_utils_messenger_ext;
+	} vk;
+};
+
+struct sf_graphics_memory_allocation {
+	u32 size;
+	struct {
+		VkDeviceMemory memory;
+	} vk;
+};
+
+
+struct sf_graphics_init_image_info {
+	enum sf_graphics_image_type type;
+	sf_graphics_image_usage_flags usage;
+	enum sf_graphics_format format;
+	enum sf_graphics_sample_count samples;
+	sf_graphics_memory_property_flags memory_properties;
+	u32 width;
+	u32 height;
+	u32 mips;
+
+	struct {
+		VkImage not_owned_image;
+	} vk;
+};
+
+struct sf_graphics_image {
+	struct sf_graphics_resource_base resource;
+	struct sf_graphics_init_image_info info;
+
+	struct sf_graphics_memory_allocation *memory;
+
+	struct  {
+		VkImage image;
+		VkDeviceMemory memory;
+		VkImageView image_view;
+		VkDescriptorSet descriptor_set;
+	} vk;
+};
+
+struct sf_graphics_init_buffer_info {
+	u64 size;
+	sf_graphics_buffer_usage_flags usage;
+	sf_graphics_memory_property_flags memory_properties;
+};
+
+
+struct sf_graphics_buffer {
+	struct sf_graphics_resource_base resource;
+	struct sf_graphics_init_buffer_info info;
+
+	void *cpu_mapped_data;
+	sf_bool is_dynamic;
+
+	struct {
+		VkBuffer buffer;
+		VkDeviceMemory memory;
+		VkDescriptorSet descriptor_set;
+	} vk;
+};
+
+struct sf_graphics_command_buffer {
+	struct sf_graphics_resource_base resource;
+	sf_bool is_recording;
+	sf_bool is_executable;
+	sf_graphics_command_buffer_usage_flags usage;
+
+	struct {
+		VkCommandPool command_pool;
+		VkCommandBuffer command_buffer;
+	} vk;
+};
+
+struct sf_graphics_semaphore {
+	struct sf_graphics_resource_base resource;
+	struct {
+		VkSemaphore semaphore;
+	} vk;
+};
+
+struct sf_graphics_fence {
+	struct sf_graphics_resource_base resource;
+	struct {
+		VkFence fence;
+	} vk;
+};
+
+struct sf_graphics_shader {
+	struct {
+		VkShaderModule shader;
+	} vk;
+};
+
+
 
 struct sf_graphics_clear_value_rgba {
 	float r;
@@ -168,208 +323,197 @@ struct sf_graphics_clear_value {
 	union sf_graphics_clear_value_data data;
 };
 
-struct sf_graphics_image {
-	struct sf_graphics_resource_base base;
-	sf_graphics_image_usage_flags usage;
-	enum sf_graphics_format format;
-	enum sf_graphics_sample_count samples;
-	u32 mips;
-	u32 width;
-	u32 height;
-	VkImage vk_image;
-	VkDeviceMemory vk_memory;
-	VkImageView vk_image_view;
-	sf_bool vk_owns_image;
-	VkDescriptorSet vk_descriptor_set;
+struct sf_graphics_init_swapchain_info {
+	u32 requested_image_count;
+	sf_bool requested_enable_vsync;
+	enum sf_graphics_sample_count sample_count;
+	struct sf_graphics_clear_value color_clear_value;
+	struct sf_graphics_clear_value depth_stencil_clear_value;
 };
 
-struct sf_graphics_buffer {
-	struct sf_graphics_resource_base base;
-	VkBuffer vk_buffer;
-	VkDeviceMemory vk_memory;
-	u32 size;
-	void *cpu_mapped_data;
-	VkDeviceAddress vk_address;
-	VkDescriptorSet vk_descriptor_set;
-};
-
-struct sf_graphics_command_buffer {
-	struct sf_graphics_resource_base base;
-	sf_graphics_command_buffer_usage_flags usage;
-	sf_bool is_recording;
-	sf_bool is_executable;
-	VkCommandPool vk_command_pool;
-	VkCommandBuffer vk_command_buffer;
-};
-
-struct sf_graphics_shader {
-	struct sf_graphics_resource_base base;
-	VkShaderModule vk_shader;
-};
-
-struct sf_graphics_pipeline {
-	struct sf_graphics_resource_base base;
-	VkPipeline vk_pipeline;
-};
-
-struct sf_graphics_render_target {
-	struct sf_graphics_resource_base base;
+struct sf_graphics_swapchain {
+	struct sf_graphics_init_swapchain_info info;
 
 	u32 width;
 	u32 height;
 
-	sf_bool will_be_presented;
-	sf_bool owns_color_attachments;
+	sf_bool is_vsync_enabled;
 
-	enum sf_graphics_sample_count samples;
 	enum sf_graphics_format color_format;
 	enum sf_graphics_format depth_stencil_format;
 
+	u32 image_count;
+	struct sf_graphics_image *images[SF_GRAPHICS_MAX_SWAPCHAIN_IMAGE_COUNT];
+
+	u32 draw_complete_semaphore_count;
+	struct sf_graphics_semaphore *draw_complete_semaphores[SF_GRAPHICS_MAX_SWAPCHAIN_IMAGE_COUNT];
+
+	u32 render_target_count;
+	struct sf_graphics_render_target *render_targets[SF_GRAPHICS_MAX_SWAPCHAIN_IMAGE_COUNT];
+
+	u32 current_image_index;
+	sf_bool requires_rebuild;
+
+	struct {
+		VkSwapchainKHR swapchain;
+		VkColorSpaceKHR color_space;
+		VkPresentModeKHR present_mode;
+	} vk;
+};
+
+struct sf_graphics_init_render_target_info {
+	u32 width; 
+	u32 height; 
+	enum sf_graphics_format color_attachment_format; 
+	struct sf_graphics_image *color_attachment;
+	enum sf_graphics_format depth_stencil_attachment_format;
+	enum sf_graphics_sample_count sample_count;
 	struct sf_graphics_clear_value color_clear_value;
 	struct sf_graphics_clear_value depth_stencil_clear_value;
-
-	u32 color_attachment_count;
-	sf_handle color_attachments[SF_GRAPHICS_MAX_RENDER_TARGET_ATTACHMENT_COUNT];
-
-	u32 resolve_attachment_count;
-	sf_handle resolve_attachments[SF_GRAPHICS_MAX_RENDER_TARGET_ATTACHMENT_COUNT];
-
-	sf_handle depth_stencil_attachment;
-
-	VkFramebuffer vk_framebuffer;
-	VkRenderPass vk_render_pass;
+	sf_bool will_be_presented;
 };
 
-typedef void (*sf_graphics_renderer_callback)(void *data, struct sf_graphics_renderer *renderer);
+struct sf_graphics_render_target {
+	struct sf_graphics_init_render_target_info info;
 
-struct sf_graphics_renderer_info {
-	u32 width;
-	u32 height;
+	struct sf_graphics_image *color_attachment;
+	struct sf_graphics_image *resolve_attachment;
+	struct sf_graphics_image *depth_stencil_attachment;
 
-	sf_bool request_enable_vsync;
-
-	struct sf_string application_name;
-
-	sf_bool vk_request_enable_validation_layers;
-
-	u32 vk_instance_extension_count;
-	char const **vk_instance_extensions;
-
-	u32 vk_instance_layer_count;
-	char const **vk_instance_layers;
-
-	u32 vk_device_extension_count;
-	char const **vk_device_extensions;
-
-	void *plataform_data;
-	sf_graphics_renderer_callback plataform_vulkan_surface_init;
-	sf_graphics_renderer_callback plataform_request_swapchain_dimensions;
+	struct {
+		VkRenderPass render_pass;
+		VkFramebuffer framebuffer;
+	} vk;
 };
 
-struct sf_graphics_renderer {
+struct sf_graphics_dynamic_buffer_allocation {
+	struct sf_graphics_buffer *buffer;
+	u64 offset64;
+	u32 offset32;
+	void *memory;
+};
+
+struct sf_graphics_dynamic_buffer {
+	struct sf_graphics_buffer *buffer;
+
+	struct sf_arena mapped_buffer_arena;
+
+	u32 garbage_buffer_count;
+	struct sf_graphics_buffer *garbage_buffers[SF_GRAPHICS_MAX_GARBAGE_ITEM_COUNT];
+};
+
+struct sf_graphics_frame {
+	struct sf_graphics_semaphore *image_acquired_semaphore;
+	struct sf_graphics_fence *in_flight_fence;
+	struct sf_graphics_command_buffer *command_buffer;
+
+	struct sf_graphics_dynamic_buffer *uniform_buffer;
+	struct sf_graphics_dynamic_buffer *index_buffer;
+	struct sf_graphics_dynamic_buffer *vertex_buffer;
+};
+
+struct sf_graphics_vertex_layout_attribute {
+	enum sf_graphics_format format;
+	u32 offset;
+};
+
+struct sf_graphics_vertex_layout {
+	u32 stride;
+	u32 attribute_count;
+	struct sf_graphics_vertex_layout_attribute attributes[SF_GRAPHICS_MAX_VERTEX_LAYOUT_ATTRIBUTE_COUNT];
+};
+
+struct sf_graphics_init_pipeline_info {
+	struct sf_graphics_vertex_layout vertex_layout;
+	struct sf_graphics_render_target const *reference_render_target;
+	struct sf_graphics_shader const *vertex_shader;
+	struct sf_graphics_shader const *fragment_shader;
+};
+
+
+struct sf_graphics_pipeline {
+	struct sf_graphics_init_pipeline_info info;
+
+	struct {
+		VkPipeline pipeline;
+	} vk;
+};
+
+
+
+struct sf_graphics_init_context_info {
+	struct sf_arena *arena;
+	
+	u32 buffering_count;
+	
+	struct sf_graphics_init_device_info device_info;
+	struct sf_graphics_init_swapchain_info swapchain_info;
+};
+
+struct sf_graphics_context {
+	struct sf_graphics_init_context_info info;
+
 	struct sf_arena arena;
 
-	void *plataform_data;
-	sf_graphics_renderer_callback plataform_vulkan_surface_init;
-	sf_graphics_renderer_callback plataform_request_swapchain_dimensions;
+	struct sf_graphics_device *device;
 
-	sf_bool requested_enable_vsync;
-	sf_bool requested_validation_layers;
+	u32 current_swapchain_arena_index;
+	struct sf_arena swapchain_arenas[2];
+	struct sf_graphics_swapchain *swapchain;
 
-	PFN_vkCreateDebugUtilsMessengerEXT vk_create_debug_utils_messenger_ext;
-	PFN_vkDestroyDebugUtilsMessengerEXT vk_destroy_debug_utils_messenger_ext;
-	PFN_vkWriteSamplerDescriptorsEXT vk_write_sampler_descriptors_ext;
+	sf_bool skip_end_frame;
+	u32 current_frame_index;
+	u32 frame_count;
 
-	VkInstance vk_instance;
-	VkDebugUtilsMessengerEXT vk_validation_messenger;
-	VkAllocationCallbacks *vk_allocation_callbacks;
+	struct sf_graphics_image *default_bound_image;
 
-	VkPhysicalDevice vk_physical_device;
-	VkSurfaceKHR vk_surface;
-	VkDevice vk_device;
-	VkQueue vk_graphics_queue;
-	VkQueue vk_present_queue;
-	u32 vk_graphics_queue_family_index;
-	u32 vk_present_queue_family_index;
 
-	VkSurfaceCapabilitiesKHR vk_surface_capabilities;
-
-	struct sf_arena swapchain_arena;
-
-	u32 vk_swapchain_min_image_count;
-	u32 vk_swapchain_max_image_count;
-	u32 vk_swapchain_requested_image_count;
-	u32 vk_swapchain_requested_frames;
-	VkFormat vk_swapchain_depth_stencil_format;
-	VkFormat vk_swapchain_color_format;
-	VkColorSpaceKHR vk_swapchain_color_space;
-	sf_bool vk_swapchain_enable_vsync;
-	VkPresentModeKHR vk_swapchain_present_mode;
-	VkSampleCountFlagBits vk_swapchain_samples;
-	u32 vk_swapchain_width;
-	u32 vk_swapchain_height;
-	VkSwapchainKHR vk_swapchain;
-
-	u32 vk_swapchain_image_count;
-	VkImage vk_swapchain_images[SF_GRAPHICS_MAX_SWAPCHAIN_IMAGE_COUNT];
-
-	u32 swapchain_attachment_count;
-	sf_handle swapchain_attachments[SF_GRAPHICS_MAX_SWAPCHAIN_IMAGE_COUNT];
-
-	u32 vk_swapchain_draw_complete_semaphore_count;
-	VkSemaphore vk_swapchain_draw_complete_semaphores[SF_GRAPHICS_MAX_SWAPCHAIN_IMAGE_COUNT];
-
-	u32 vk_swapchain_image_acquired_semaphore_count;
-	VkSemaphore vk_swapchain_image_acquired_semaphores[SF_GRAPHICS_MAX_FRAMES_IN_FLIGHT_COUNT];
-
-	u32 vk_swapchain_in_flight_fence_count;
-	VkFence vk_swapchain_in_flight_fences[SF_GRAPHICS_MAX_FRAMES_IN_FLIGHT_COUNT];
-
-	u32 vk_swapchain_current_image_index;
-	u32 vk_swapchain_current_frame_index;
-
-	sf_bool swapchain_skip_end_frame;
-
-	sf_handle swapchain_render_targets[SF_GRAPHICS_MAX_SWAPCHAIN_IMAGE_COUNT];
-
-	sf_handle main_command_buffers[SF_GRAPHICS_MAX_FRAMES_IN_FLIGHT_COUNT];
-
-	// TODO(samuel): for now just default to this. Later better build a cache
-	VkSampler vk_linear_sampler;
-
-	VkDescriptorPool vk_global_descriptor_pool;
-	
-	// NOTE(samuel): Not a good design. https://vulkan.gpuinfo.org/displaydevicelimit.php?name=maxBoundDescriptorSets&platform=windows max 4 descriptor sets
-	VkDescriptorSetLayout vk_image_descriptor_set_layout;
-	VkDescriptorSetLayout vk_uniform_descriptor_set_layout;
-	VkDescriptorSetLayout vk_dynamic_uniform_descriptor_set_layout;
-
-	VkPipelineLayout vk_general_pipeline_layout;
-
-	sf_handle placeholder_image;
-
-	struct sf_graphics_image image_pool[SF_GRAPHICS_MAX_RESOURCE_POOL_COUNT];
-	struct sf_graphics_buffer buffer_pool[SF_GRAPHICS_MAX_RESOURCE_POOL_COUNT];
-	struct sf_graphics_command_buffer command_buffer_pool[SF_GRAPHICS_MAX_RESOURCE_POOL_COUNT];
-	struct sf_graphics_render_target render_target_pool[SF_GRAPHICS_MAX_RESOURCE_POOL_COUNT];
-	struct sf_graphics_pipeline pipeline_pool[SF_GRAPHICS_MAX_RESOURCE_POOL_COUNT];
-	struct sf_graphics_shader shader_pool[SF_GRAPHICS_MAX_RESOURCE_POOL_COUNT];
+	struct sf_graphics_frame *frames[SF_GRAPHICS_MAX_FRAMES_IN_FLIGHT_COUNT];
 };
 
-sf_public struct sf_graphics_renderer *sf_graphics_renderer_init(struct sf_arena *arena, struct sf_graphics_renderer_info *info);
-sf_public void sf_graphics_renderer_deinit(struct sf_graphics_renderer *r);
+struct sf_graphics_vertex {
+	vec3 position;
+	vec3 normal;
+	vec2 uv;
+};
 
-sf_public sf_handle sf_graphics_image_init_from_file(struct sf_graphics_renderer *r, struct sf_string *path);
-sf_public void sf_graphics_image_deinit(struct sf_graphics_renderer *r, sf_handle image_handle);
 
-sf_public struct sf_graphics_glfw_platform *sf_graphics_glfw_platform_init(struct sf_arena *arena, i32 width, i32 height, struct sf_string const *title);
+struct sf_graphics_glfw_platform {
+	GLFWwindow *window;
+	i32 window_width;
+	i32 window_height;
+};
 
-sf_public void sf_graphics_glfw_platform_deinit(struct sf_graphics_glfw_platform *platform);
 
-sf_public void sf_graphics_glfw_platform_process_events(struct sf_graphics_glfw_platform *platform);
+sf_public struct sf_graphics_context *sf_graphics_init_context(struct sf_arena *arena, struct sf_graphics_init_context_info *init_info);
+sf_public void sf_graphics_deinit_context(struct sf_graphics_context *context);
 
-sf_public sf_bool sf_graphics_glfw_platform_should_close(struct sf_graphics_glfw_platform *platform);
+sf_public void sf_graphics_begin_frame(struct sf_graphics_context *context);
+sf_public void sf_graphics_end_frame(struct sf_graphics_context *context);
 
-sf_public void sf_graphics_glfw_platform_fill_renderer_info(struct sf_arena *arena, struct sf_graphics_glfw_platform *platform, struct sf_graphics_renderer_info *info);
+sf_public struct sf_graphics_pipeline *sf_graphics_init_pipeline(struct sf_graphics_context *context, struct sf_graphics_init_pipeline_info const *info);
+sf_public void sf_graphics_deinit_pipeline(struct sf_graphics_context *context, struct sf_graphics_pipeline *pipeline);
+
+sf_public struct sf_graphics_image *sf_graphics_init_image(struct sf_graphics_context *context, struct sf_graphics_init_image_info const *info);
+sf_public void sf_graphics_deinit_image(struct sf_graphics_context *context, struct sf_graphics_image *image);
+
+sf_public struct sf_graphics_buffer *sf_graphics_init_buffer(struct sf_graphics_context *context, struct sf_graphics_init_buffer_info const *info);
+sf_public void sf_graphics_deinit_buffer(struct sf_graphics_context *context, struct sf_graphics_buffer *buffer);
+
+sf_public void *sf_graphics_command_allocate_and_bind_immediate_vertex_memory(struct sf_graphics_context *context, u64 size);
+sf_public void *sf_graphics_command_allocate_and_bind_immediate_index_memory(struct sf_graphics_context *context, u64 size);
+sf_public void *sf_graphics_command_allocate_and_bind_immediate_uniform_memory(struct sf_graphics_context *context, u64 size);
+
+sf_public void sf_graphics_command_bind_image_to_slot0(struct sf_graphics_context *context, struct sf_graphics_image *image);
+sf_public void sf_graphics_command_bind_image_to_slot1(struct sf_graphics_context *context, struct sf_graphics_image *image);
+
+sf_public void sf_graphics_command_draw_indexed(struct sf_graphics_context *context, u32 index_count, u32 instance_count, u32 first_index, i32 vertex_offset, u32 first_instance);
+
+sf_public struct sf_graphics_glfw_platform *sf_graphics_init_glfw_platform(struct sf_arena *arena, i32 width, i32 height, struct sf_string const *title);
+sf_public void sf_graphics_deinit_glfw_platform(struct sf_graphics_glfw_platform *platform);
+
+sf_public void sf_graphics_glfw_process_events(struct sf_graphics_glfw_platform *platform);
+sf_public sf_bool sf_graphics_glfw_should_close(struct sf_graphics_glfw_platform *platform);
+sf_public void sf_graphics_glfw_fill_init_context_info(struct sf_arena *arena, struct sf_graphics_glfw_platform *platform, struct sf_graphics_init_context_info *info);
 
 #endif
