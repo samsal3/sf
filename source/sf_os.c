@@ -2,6 +2,8 @@
 
 #include "sf_graphics.h"
 
+#include <stdio.h>
+
 
 sf_private void sf_os_glfw_framebuffer_resize_callback(GLFWwindow *glfw_window, i32 width, i32 height) {
 	struct sf_os_window *window = (struct sf_os_window *)glfwGetWindowUserPointer(glfw_window);
