@@ -5,7 +5,6 @@
 
 #include <vulkan/vulkan.h>
 #include <GLFW/glfw3.h>
-#include <cglm/cglm.h>
 
 #define SF_GRAPHICS_MAX_GARBAGE_ITEM_COUNT 64
 #define SF_GRAPHICS_MAX_FRAMES_IN_FLIGHT_COUNT 3
@@ -18,6 +17,8 @@
 #define SF_GRAPHICS_MAX_RESOURCE_POOL_COUNT 16
 #define SF_GRAPHICS_MAX_IMAGE_DESCRIPTOR_COUNT 8
 
+typedef float vec2[3];
+typedef float vec3[3];
 
 struct sf_graphics_renderer;
 
@@ -126,7 +127,7 @@ enum sf_graphics_buffer_usage {
 	SF_GRAPHICS_BUFFER_USAGE_VERTEX_BUFFER = 0x00000080,
 	SF_GRAPHICS_BUFFER_USAGE_INDIRECT_BUFFER = 0x00000100,
 	SF_GRAPHICS_BUFFER_USAGE_SHADER_DEVICE_ADDRESS = 0x00000200,
-	SF_GRAPHICS_BUFFER_USAGE_DESCRIPTOR_HEAP = 0x00000400,
+	SF_GRAPHICS_BUFFER_USAGE_DESCRIPTOR_HEAP = 0x00000400
 };
 typedef u32 sf_graphics_buffer_usage_flags;
 
@@ -140,7 +141,7 @@ enum sf_graphics_memory_property {
 typedef u32 sf_graphics_memory_property_flags;
 
 enum sf_graphics_command_buffer_usage {
-	SF_GRAPHICS_COMMAND_BUFFER_USAGE_ONE_TIME_SUBMIT = 0x0000001,
+	SF_GRAPHICS_COMMAND_BUFFER_USAGE_ONE_TIME_SUBMIT = 0x0000001
 };
 typedef u32 sf_graphics_command_buffer_usage_flags;
 

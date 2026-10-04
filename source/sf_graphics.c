@@ -95,8 +95,7 @@ sf_private char const *sf_graphics_get_string_from_vulkan_result(VkResult vk_res
 
 sf_private sf_bool sf_graphics_vulkan_check_result(VkResult result, char const *what, int line, char const *file) {
 	char const *result_string = sf_graphics_get_string_from_vulkan_result(result);
-	if (result != VK_SUCCESS)
-		fprintf(stderr, "%s - %s - %s:%i\n", result_string, what, file, line);
+	fprintf(stderr, "%s - %s - %s:%i\n", result_string, what, file, line);
 	return result == VK_SUCCESS;
 }
 
@@ -423,7 +422,11 @@ sf_private struct sf_graphics_device *sf_graphics_init_device(struct sf_arena *a
 
 		instance_info.sType = VK_STRUCTURE_TYPE_INSTANCE_CREATE_INFO;
 		instance_info.pNext = NULL;
+#ifdef __APPLE__
+		instance_info.flags = VK_INSTANCE_CREATE_ENUMERATE_PORTABILITY_BIT_KHR;
+#else
 		instance_info.flags = 0;
+#endif
 		instance_info.pApplicationInfo = &app_info;
 		instance_info.enabledLayerCount = init_info->vk.instance_layer_count;
 		instance_info.ppEnabledLayerNames = init_info->vk.instance_layers;
@@ -514,7 +517,7 @@ sf_private struct sf_graphics_device *sf_graphics_init_device(struct sf_arena *a
 		device_info.ppEnabledLayerNames = NULL; // NOTE(samuel): deprecated
 		device_info.enabledExtensionCount = init_info->vk.device_extension_count;
 		device_info.ppEnabledExtensionNames = init_info->vk.device_extensions;
-		device_info.pEnabledFeatures = &device->vk.physical_device_features; // NOTE(samuel): legacy, but we are still using version 1.0.0;
+		device_info.pEnabledFeatures = NULL; // NOTE(samuel): deprecated
 
 		if (!SF_VULKAN_CHECK(vkCreateDevice(device->vk.physical_device, &device_info, device->vk.allocation_callbacks, &device->vk.device))) {
 			device->vk.device = VK_NULL_HANDLE;
@@ -794,7 +797,7 @@ sf_private void sf_graphics_vulkan_find_supported_color_format(struct sf_arena *
 	VkSurfaceFormatKHR default_format = {0};
 	struct sf_graphics_vulkan_surface_format_array candidates = {0};
 
-	requested_format.format = VK_FORMAT_R8G8B8A8_UNORM;
+	requested_format.format = VK_FORMAT_B8G8R8A8_SRGB;
 	requested_format.colorSpace = VK_COLOR_SPACE_SRGB_NONLINEAR_KHR;
 
 	default_format.format = VK_FORMAT_UNDEFINED;
@@ -1698,6 +1701,7 @@ sf_private struct sf_graphics_buffer *sf_graphics_device_init_buffer(struct sf_a
 			goto error;
 	}
 
+
 	if (info->usage & SF_GRAPHICS_BUFFER_USAGE_UNIFORM_BUFFER) {
 		sf_bool is_dynamic = !!(info->memory_properties & SF_GRAPHICS_MEMORY_PROPERTY_CPU_VISIBLE);
 
@@ -1898,8 +1902,6 @@ sf_private void sf_graphics_begin_command_buffer(struct sf_graphics_command_buff
 }
 
 sf_private void sf_graphics_end_command_buffer(struct sf_graphics_command_buffer *command_buffer) {
-	SF_ASSERT(command_buffer->vk.command_buffer);
-
 	if (!command_buffer || !command_buffer->vk.command_buffer || !command_buffer->is_recording)
 		return;
 	
@@ -1918,8 +1920,6 @@ sf_private void sf_graphics_device_submit_and_block_command_buffer(struct sf_gra
 
 	{
 		VkSubmitInfo info = {0};
-
-		SF_ASSERT(command_buffer->vk.command_buffer);
 
 		info.sType = VK_STRUCTURE_TYPE_SUBMIT_INFO;
 		info.pNext = NULL;
@@ -2038,7 +2038,6 @@ error:
 }
 
 sf_public void sf_graphics_device_end_submit_and_deinit_command_buffer(struct sf_graphics_device *device, struct sf_graphics_command_buffer *command_buffer) {
-	SF_ASSERT(command_buffer->vk.command_buffer);
 	sf_graphics_end_command_buffer(command_buffer);
 	sf_graphics_device_submit_and_block_command_buffer(device, command_buffer);
 	sf_graphics_device_deinit_command_buffer(device, command_buffer);
@@ -2541,6 +2540,7 @@ sf_public struct sf_graphics_image *sf_graphics_device_init_image_from_file(stru
 	u32 height = 0;
 	enum sf_graphics_format format = SF_GRAPHICS_FORMAT_UNDEFINED;
 	void *data = NULL;
+	struct sf_graphics_image *image = NULL;
 
 	if (!device || !path)
 		return NULL;
@@ -2559,7 +2559,9 @@ sf_public struct sf_graphics_image *sf_graphics_device_init_image_from_file(stru
 	info.height = height;
 	info.mips = SF_GRAPHICS_CALCULATE_MIPS;
 
-	return sf_graphics_device_init_image_and_upload_data(arena, device, &info, data);
+	image = sf_graphics_device_init_image_and_upload_data(arena, device, &info, data);
+	sf_image_free(data);
+	return image;
 }
 
 
@@ -2930,10 +2932,12 @@ sf_private struct sf_graphics_swapchain *sf_graphics_device_init_swapchain(struc
 
 	swapchain->depth_stencil_format = sf_graphics_get_format_from_vulkan_format(vk_depth_stencil_format);
 
+
 	// FIXME(samuel): device and surface order...
 	sf_graphics_vulkan_find_supported_color_format(arena, device->vk.physical_device, device->vk.surface, &vk_surface_format);
 	if (vk_surface_format.format == VK_FORMAT_UNDEFINED)
 		goto error;
+
 
 	swapchain->vk.color_space = vk_surface_format.colorSpace;
 	swapchain->color_format = sf_graphics_get_format_from_vulkan_format(vk_surface_format.format);
@@ -2982,7 +2986,7 @@ sf_private struct sf_graphics_swapchain *sf_graphics_device_init_swapchain(struc
 	}
 
 	sf_graphics_vulkan_load_swapchain_image_array(device->vk.device, swapchain->vk.swapchain, &swapchain_images);
-	if (!swapchain_images.size || !swapchain_images.data)
+	if (!swapchain_images.size)
 		goto error;
 
 	swapchain->image_count = swapchain_images.size;
@@ -3312,6 +3316,7 @@ sf_private struct sf_graphics_pipeline *sf_graphics_device_init_pipeline(struct 
 	return pipeline;
 error:
 	sf_graphics_device_deinit_pipeline(device, pipeline);
+	return NULL;
 }
 
 sf_private void sf_graphics_dynamic_buffer_clear_garbage(struct sf_graphics_device *device, struct sf_graphics_dynamic_buffer *dynamic_buffer) {
@@ -3332,6 +3337,8 @@ sf_private sf_bool sf_graphics_dynamic_buffer_move_buffer_to_garbage(struct sf_g
 
 	dynamic_buffer->garbage_buffers[dynamic_buffer->garbage_buffer_count++] = dynamic_buffer->buffer;
 	dynamic_buffer->buffer = NULL;
+
+	return SF_TRUE;
 }
 
 sf_private void sf_graphics_device_deinit_dynamic_buffer(struct sf_graphics_device *device, struct sf_graphics_dynamic_buffer *dynamic_buffer) {
@@ -3361,6 +3368,8 @@ sf_private sf_bool sf_graphics_dynamic_buffer_init_buffer_and_setup_arena(struct
 	dynamic_buffer->mapped_buffer_arena.position = 0;
 	dynamic_buffer->mapped_buffer_arena.alignment = 256; // FIXME(samuel): Actually query this and use the correct value
 	dynamic_buffer->mapped_buffer_arena.capacity = size; // FIXME(samuel): Actually query this and use the correct value
+
+	return SF_TRUE;
 }
 
 
@@ -3512,7 +3521,6 @@ sf_private u64 sf_graphics_get_max_uniform_buffer_range(struct sf_graphics_conte
 
 sf_private void sf_graphics_context_init_frames(struct sf_arena *arena, struct sf_graphics_context *context, u32 buffering_count) {
 	u32 i = 0;
-	u64 max_uniform_buffer_size = 0;
 
 	if (!arena || !context || buffering_count > SF_SIZE(context->frames) || !context->device)
 		return;
@@ -3521,7 +3529,6 @@ sf_private void sf_graphics_context_init_frames(struct sf_arena *arena, struct s
 	SF_ARRAY_INIT(context->frames, NULL);
 
 
-	max_uniform_buffer_size = sf_graphics_get_max_uniform_buffer_range(context);
 	for (i = 0; i < buffering_count; ++i) {
 		context->frames[i] = sf_graphics_device_init_frame(arena, context->device, SF_KB(2), SF_MB(64), SF_MB(64));
 		if (!context->frames[i])
@@ -3591,12 +3598,13 @@ sf_public struct sf_graphics_context *sf_graphics_init_context(struct sf_arena *
 	sf_graphics_context_init_frames(&context->arena, context, init_info->buffering_count);
 	if (!context->frame_count)
 		goto error;
+	
 
-
-	default_bound_image_path = SF_STRING("resources\\test.jpg");
+	default_bound_image_path = SF_STRING("resources/test.jpg");
 	context->default_bound_image = sf_graphics_device_init_image_from_file(&context->arena, context->device, &default_bound_image_path);
 	if (!context->default_bound_image)
 		goto error;
+
 
 	return context;
 
@@ -3983,14 +3991,14 @@ sf_public void sf_graphics_glfw_fill_init_context_info(struct sf_arena *arena, s
 
 	sf_local_persist char const *validation_layers[] = {"VK_LAYER_KHRONOS_validation"};
 	sf_local_persist char const *device_extensions[] = {
-	    VK_KHR_SWAPCHAIN_EXTENSION_NAME,
+	    VK_KHR_SWAPCHAIN_EXTENSION_NAME
 
 #ifdef __APPLE__
 	    , "VK_KHR_portability_subset"
 #endif
 	};
 
-	if (!arena, !platform || !info)
+	if (!arena || !platform || !info)
 		return;
 
 	info->buffering_count = 2;
@@ -4017,7 +4025,7 @@ sf_public void sf_graphics_glfw_fill_init_context_info(struct sf_arena *arena, s
 	base_instance_extensions = glfwGetRequiredInstanceExtensions(&base_instance_extension_count);
 
 #ifdef __APPLE__
-	required_instance_extension_count = base_instance_extension_count + 2;
+	required_instance_extension_count = base_instance_extension_count + 3;
 #else
 	required_instance_extension_count = base_instance_extension_count + 1;
 #endif
@@ -4032,6 +4040,7 @@ sf_public void sf_graphics_glfw_fill_init_context_info(struct sf_arena *arena, s
 		info->device_info.vk.instance_extensions[base_instance_extension_count + 0] = VK_EXT_DEBUG_UTILS_EXTENSION_NAME;
 #ifdef __APPLE__
 		info->device_info.vk.instance_extensions[base_instance_extension_count + 1] = "VK_KHR_portability_enumeration";
+		info->device_info.vk.instance_extensions[base_instance_extension_count + 2] = "VK_KHR_get_physical_device_properties2";
 #endif
 	}
 
@@ -4051,7 +4060,7 @@ sf_public struct sf_graphics_pipeline *sf_graphics_init_pipeline(struct sf_graph
 
 sf_public void sf_graphics_deinit_pipeline(struct sf_graphics_context *context, struct sf_graphics_pipeline *pipeline) {
 	if (!context || !pipeline)
-		return NULL;
+		return;
 
 	sf_graphics_device_deinit_pipeline(context->device, pipeline);
 }
@@ -4065,7 +4074,7 @@ sf_public struct sf_graphics_image *sf_graphics_init_image(struct sf_graphics_co
 
 sf_public void sf_graphics_deinit_image(struct sf_graphics_context *context, struct sf_graphics_image *image) {
 	if (!context || !image)
-		return NULL;
+		return;
 
 	sf_graphics_device_deinit_image(context->device, image);
 }
@@ -4079,7 +4088,7 @@ sf_public struct sf_graphics_buffer *sf_graphics_init_buffer(struct sf_graphics_
 
 sf_public void sf_graphics_deinit_buffer(struct sf_graphics_context *context, struct sf_graphics_buffer *buffer) {
 	if (!context || !buffer)
-		return NULL;
+		return;
 
 	sf_graphics_device_deinit_buffer(context->device, buffer);
 }
