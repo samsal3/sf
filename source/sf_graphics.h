@@ -16,20 +16,11 @@
 #define SF_GRAPHICS_MAX_VERTEX_LAYOUT_ATTRIBUTE_COUNT 4
 #define SF_GRAPHICS_MAX_RESOURCE_POOL_COUNT 16
 #define SF_GRAPHICS_MAX_IMAGE_DESCRIPTOR_COUNT 8
-
+#define SF_GRAPHICS_CALCULATE_MIPS (u32)-1
+\
 typedef float vec2[3];
 typedef float vec3[3];
 
-struct sf_graphics_renderer;
-
-typedef uintptr_t sf_handle;
-#define SF_NULL_HANDLE 0
-
-struct sf_graphics_resource_base {
-	sf_bool is_occupied;
-};
-
-#define SF_GRAPHICS_CALCULATE_MIPS (u32)-1
 
 enum sf_graphics_format {
 	SF_GRAPHICS_FORMAT_UNDEFINED,
@@ -234,7 +225,6 @@ struct sf_graphics_init_image_info {
 };
 
 struct sf_graphics_image {
-	struct sf_graphics_resource_base resource;
 	struct sf_graphics_init_image_info info;
 
 	struct sf_graphics_memory_allocation *memory;
@@ -255,7 +245,6 @@ struct sf_graphics_init_buffer_info {
 
 
 struct sf_graphics_buffer {
-	struct sf_graphics_resource_base resource;
 	struct sf_graphics_init_buffer_info info;
 
 	void *cpu_mapped_data;
@@ -269,7 +258,6 @@ struct sf_graphics_buffer {
 };
 
 struct sf_graphics_command_buffer {
-	struct sf_graphics_resource_base resource;
 	sf_bool is_recording;
 	sf_bool is_executable;
 	sf_graphics_command_buffer_usage_flags usage;
@@ -281,14 +269,12 @@ struct sf_graphics_command_buffer {
 };
 
 struct sf_graphics_semaphore {
-	struct sf_graphics_resource_base resource;
 	struct {
 		VkSemaphore semaphore;
 	} vk;
 };
 
 struct sf_graphics_fence {
-	struct sf_graphics_resource_base resource;
 	struct {
 		VkFence fence;
 	} vk;

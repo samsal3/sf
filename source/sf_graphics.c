@@ -1171,8 +1171,6 @@ sf_private VkDeviceMemory sf_graphics_vulkan_allocate_memory_for_buffer(struct s
 
 sf_public void sf_graphics_device_deinit_image(struct sf_graphics_device *device, struct sf_graphics_image *image) {
 	if (device && image) {
-		image->resource.is_occupied = SF_FALSE;
-
 		if (device->vk.device) {
 			if (device->vk.global_descriptor_pool) {
 				if (image->vk.descriptor_set) {
@@ -1647,7 +1645,6 @@ sf_private VkBufferUsageFlags sf_graphics_vulkan_get_buffer_usage_flags_from_buf
 
 sf_private void sf_graphics_device_deinit_buffer(struct sf_graphics_device *device, struct sf_graphics_buffer *buffer) {
 	if (device && buffer) {
-		buffer->resource.is_occupied = SF_FALSE;
 		buffer->cpu_mapped_data = NULL;
 
 		if (device->vk.device) {
@@ -1775,7 +1772,7 @@ sf_public struct sf_graphics_buffer *sf_graphics_device_init_buffer_for_staging(
 
 	buffer = sf_graphics_device_init_buffer(arena, device, &info);
 	if (!buffer)
-		return SF_NULL_HANDLE;
+		return NULL;
 
 	if (data) {
 		void *mapped_data = buffer->cpu_mapped_data;
@@ -1790,7 +1787,7 @@ sf_public struct sf_graphics_buffer *sf_graphics_device_init_buffer_for_staging(
 
 error:
 	sf_graphics_device_deinit_buffer(device, buffer);
-	return SF_NULL_HANDLE;
+	return NULL;
 }
 
 sf_private VkCommandBufferUsageFlags sf_graphics_vulkan_get_command_buffer_usage_flags_from_command_buffer_flags(sf_graphics_command_buffer_usage_flags flags) {
@@ -1817,8 +1814,6 @@ sf_private VkCommandPoolCreateFlags sf_graphics_vulkan_get_command_pool_create_f
 
 sf_private void sf_graphics_device_deinit_command_buffer(struct sf_graphics_device *device, struct sf_graphics_command_buffer *command_buffer) {
 	if (device && command_buffer) {
-		command_buffer->resource.is_occupied = SF_FALSE;
-
 		if (device->vk.device) {
 			if (command_buffer->vk.command_pool) {
 				if (command_buffer->vk.command_buffer) {
@@ -2536,7 +2531,7 @@ sf_public struct sf_graphics_image *sf_graphics_device_init_image_and_upload_dat
 error:
 	sf_graphics_device_wait_idle(device);
 	sf_graphics_device_deinit_image(device, result_image);
-	result_image = SF_NULL_HANDLE;
+	result_image = NULL;
 
 cleanup:
 	sf_graphics_device_end_submit_and_deinit_command_buffer(device, command_buffer);
@@ -2558,7 +2553,7 @@ sf_public struct sf_graphics_image *sf_graphics_device_init_image_from_file(stru
 
 	data = sf_image_load_from_file(arena, path, &width, &height, &format);
 	if (!data)
-		return SF_NULL_HANDLE;
+		return NULL;
 
 
 	info.type = SF_GRAPHICS_IMAGE_TYPE_2D;
