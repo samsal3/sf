@@ -15,8 +15,8 @@ sf_private void sf_os_glfw_framebuffer_resize_callback(GLFWwindow *glfw_window, 
 	window->height = height;
 }
 
-sf_public struct sf_os_window *sf_os_init_window(struct sf_arena *arena, u32 width, u32 height, struct sf_string const *title) {
-	struct sf_string window_title = {0};
+sf_public struct sf_os_window *sf_os_init_window(struct sf_arena *arena, u32 width, u32 height, struct sf_string title) {
+	struct sf_string null_terminated_title = {0};
 	struct sf_os_window *window = NULL;
 
 	window = sf_arena_allocate(arena, sizeof(*window));
@@ -28,9 +28,11 @@ sf_public struct sf_os_window *sf_os_init_window(struct sf_arena *arena, u32 wid
 
 	glfwWindowHint(GLFW_CLIENT_API, GLFW_NO_API);
 
-	sf_string_null_terminate(arena, title, &window_title);
-	window->glfw.window = glfwCreateWindow(width, height, window_title.data, NULL, NULL);
+	null_terminated_title = sf_string_null_terminate(arena, title);
+	if (!null_terminated_title.data)
+		goto error;
 
+	window->glfw.window = glfwCreateWindow(width, height, null_terminated_title.data, NULL, NULL);
 	if (!window->glfw.window)
 		goto error;
 

@@ -106,13 +106,14 @@ sf_private sf_bool sf_graphics_vulkan_is_extension_available(char const *require
 	u32 i = 0;
 	struct sf_string required = {0};
 
-	sf_string_from_non_literal(required_extension, VK_MAX_EXTENSION_NAME_SIZE, &required);
+	required = sf_string_from_non_literal(required_extension, VK_MAX_EXTENSION_NAME_SIZE);
 
 	for (i = 0; i < available_extension_count; ++i) {
 		struct sf_string available = {0};
-		sf_string_from_non_literal(available_extensions[i].extensionName, VK_MAX_EXTENSION_NAME_SIZE, &available);
 
-		if (sf_string_compare(&required, &available, VK_MAX_EXTENSION_NAME_SIZE))
+		available = sf_string_from_non_literal(available_extensions[i].extensionName, VK_MAX_EXTENSION_NAME_SIZE);
+
+		if (sf_string_compare(required, available, VK_MAX_EXTENSION_NAME_SIZE))
 			return SF_TRUE;
 	}
 	return SF_FALSE;
@@ -405,7 +406,7 @@ sf_private struct sf_graphics_device *sf_graphics_init_device(struct sf_arena *a
 	if (vk_api_version < vk_required_api_version)
 		goto error;
 
-	sf_string_null_terminate(arena, &init_info->application_name, &null_terminated_app_name);
+	null_terminated_app_name = sf_string_null_terminate(arena, init_info->application_name);
 	if (!null_terminated_app_name.data || !null_terminated_app_name.size)
 		goto error;
 
@@ -2543,7 +2544,7 @@ cleanup:
 	return result_image;
 }
 
-sf_public struct sf_graphics_image *sf_graphics_device_init_image_from_file(struct sf_arena *arena, struct sf_graphics_device *device , struct sf_string const *path) {
+sf_public struct sf_graphics_image *sf_graphics_device_init_image_from_file(struct sf_arena *arena, struct sf_graphics_device *device , struct sf_string path) {
 	struct sf_graphics_init_image_info info = {0};
 	u32 width = 0;
 	u32 height = 0;
@@ -2551,7 +2552,7 @@ sf_public struct sf_graphics_image *sf_graphics_device_init_image_from_file(stru
 	void *data = NULL;
 	struct sf_graphics_image *image = NULL;
 
-	if (!device || !path)
+	if (!device || !path.size || !path.data)
 		return NULL;
 
 	data = sf_image_load_from_file(arena, path, &width, &height, &format);
@@ -3572,8 +3573,6 @@ sf_public void sf_graphics_deinit_context(struct sf_graphics_context *context) {
 
 sf_public struct sf_graphics_context *sf_graphics_init_context(struct sf_arena *arena, struct sf_graphics_init_context_info *init_info) {
 	struct sf_graphics_context *context = NULL;
-	struct sf_string default_bound_image_path = {0};
-
 	if (!arena || !init_info)
 		return NULL;
 
@@ -3590,7 +3589,6 @@ sf_public struct sf_graphics_context *sf_graphics_init_context(struct sf_arena *
 	context->device = sf_graphics_init_device(&context->arena, &init_info->device_info);
 	if (!context->device)
 		goto error;
-
 
 	context->current_swapchain_arena_index = 0;
 
@@ -3612,8 +3610,7 @@ sf_public struct sf_graphics_context *sf_graphics_init_context(struct sf_arena *
 
 	context->current_swapchain_arena_index = 0;
 
-	default_bound_image_path = SF_STRING("resources/test.jpg");
-	context->default_bound_image = sf_graphics_device_init_image_from_file(&context->arena, context->device, &default_bound_image_path);
+	context->default_bound_image = sf_graphics_device_init_image_from_file(&context->arena, context->device, SF_STRING("reouces/test.jpg"));
 	if (!context->default_bound_image)
 		goto error;
 

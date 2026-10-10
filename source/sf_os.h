@@ -16,7 +16,7 @@ struct sf_os_window {
 	} glfw;
 };
 
-sf_public struct sf_os_window *sf_os_init_window(struct sf_arena *arena, u32 width, u32 height, struct sf_string const *title);
+sf_public struct sf_os_window *sf_os_init_window(struct sf_arena *arena, u32 width, u32 height, struct sf_string title);
 sf_public void sf_os_deinit_window(struct sf_os_window *window);
 
 sf_public void sf_os_process_events(struct sf_os_window *window);

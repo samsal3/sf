@@ -18,10 +18,9 @@ int main(void) {
 	if (!arena.data)
 		return 0;
 
-	title = SF_STRING("sf_graphics test");
 	source = SF_STRING("resources\\test.jpg");
 
-	window = sf_os_init_window(&arena, 800, 600, &title);
+	window = sf_os_init_window(&arena, 800, 600, SF_STRING("sf_graphics test"));
 	if (!window)
 		goto error;
 

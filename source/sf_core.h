@@ -80,14 +80,13 @@ sf_public void sf_arena_scratch(struct sf_arena *arena, u64 capacity, struct sf_
 
 sf_public void sf_arena_clear(struct sf_arena *arena);
 
-sf_public void sf_string_from_non_literal(char const *non_literal, u64 max_size, struct sf_string *out);
+sf_public struct sf_string sf_string_from_non_literal(char const *non_literal, u64 max_size);
 
-sf_public sf_bool sf_string_compare(struct sf_string const *lhs, struct sf_string const *rhs, u64 max_size);
+sf_public sf_bool sf_string_compare(struct sf_string lhs, struct sf_string rhs, u64 max_size);
 
-sf_public void sf_string_clone(struct sf_arena *arena, struct sf_string const *in, struct sf_string *out);
+sf_public struct sf_string sf_string_clone(struct sf_arena *arena, struct sf_string s);
 
-sf_public void sf_string_null_terminate(struct sf_arena *arena, struct sf_string const *in, struct sf_string *out);
-
+sf_public struct sf_string sf_string_null_terminate(struct sf_arena *arena, struct sf_string s);
 
 sf_public struct sf_string sf_string_from_literal(char const *str, u64 size);
 
@@ -150,61 +149,66 @@ sf_private u64 sf_non_literal_string_size(char const *non_literal, u64 max_size)
 	return max_size;
 }
 
-sf_public void sf_string_from_non_literal(char const *non_literal, u64 max_size, struct sf_string *out) {
-	out->data = non_literal;
-	out->size = sf_non_literal_string_size(non_literal, max_size);
+sf_public struct sf_string sf_string_from_non_literal(char const *non_literal, u64 max_size) {
+	struct sf_string result = {0};
+
+	result.data = non_literal;
+	result.size = sf_non_literal_string_size(non_literal, max_size);
+
+	return result;
 }
 
-sf_public sf_bool sf_string_compare(struct sf_string const *lhs, struct sf_string const *rhs, u64 max_size) {
+sf_public sf_bool sf_string_compare(struct sf_string lhs, struct sf_string rhs, u64 max_size) {
 	u64 i = 0;
 
-	if (lhs->size != rhs->size)
+	if (lhs.size != rhs.size)
 		return SF_FALSE;
 
-	for (i = 0; i < SF_MIN(lhs->size, max_size); ++i)
-		if (lhs->data[i] != rhs->data[i])
+	for (i = 0; i < SF_MIN(lhs.size, max_size); ++i)
+		if (lhs.data[i] != rhs.data[i])
 			return SF_FALSE;
 
 	return SF_TRUE;
 }
 
-sf_public void sf_string_clone(struct sf_arena *arena, struct sf_string const *in, struct sf_string *out) {
+sf_public struct sf_string sf_string_clone(struct sf_arena *arena, struct sf_string s) {
 	char *data = NULL;
+        struct sf_string result = {0};
 
-	if (!arena || !in || !out)
-		return;
+	if (!arena || !s.size || !s.data)
+		return result;
 
-	out->size = 0;
-	out->data = NULL;
-
-	data = sf_arena_allocate(arena, in->size);
+	data = sf_arena_allocate(arena, s.size);
 	if (!data)
-		return;
+		return result;
 
-	SF_MEMORY_COPY(data, in->data, in->size);
+	SF_MEMORY_COPY(data, s.data, s.size);
 
-	out->size = in->size;
-	out->data = data;
+	s.size = s.size;
+	s.data = data;
+
+        return result;
 }
 
-sf_public void sf_string_null_terminate(struct sf_arena *arena, struct sf_string const *in, struct sf_string *out) {
+sf_public struct sf_string sf_string_null_terminate(struct sf_arena *arena, struct sf_string s) {
 	char *data = NULL;
+        struct sf_string result = {0};
 
-	if (!arena || !in || !out)
-		return;
+	if (!arena || !s.size || !s.data)
+		return result;
 
-	out->size = 0;
-	out->data = NULL;
-
-	data = sf_arena_allocate(arena, in->size + 1);
+	data = sf_arena_allocate(arena, s.size + 1);
 	if (!data)
-		return;
+		return result;
 
-	SF_MEMORY_COPY(data, in->data, in->size);
-	data[in->size] = '\0';
 
-	out->size = in->size;
-	out->data = data;
+	SF_MEMORY_COPY(data, s.data, s.size);
+	data[s.size] = '\0';
+
+	s.size = s.size;
+	s.data = data;
+
+        return result;
 }
 
 sf_public struct sf_string sf_string_from_literal(char const *str, u64 size) {
