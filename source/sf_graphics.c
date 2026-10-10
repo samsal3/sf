@@ -95,14 +95,17 @@ sf_private char const *sf_graphics_get_string_from_vulkan_result(VkResult vk_res
 
 sf_private sf_bool sf_graphics_vulkan_check_result(VkResult result, char const *what, int line, char const *file) {
 	char const *result_string = sf_graphics_get_string_from_vulkan_result(result);
+
 	if (result != VK_SUCCESS)
 		fprintf(stderr, "%s - %s - %s:%i\n", result_string, what, file, line);
+
 	return result == VK_SUCCESS;
 }
 
 sf_private sf_bool sf_graphics_vulkan_is_extension_available(char const *required_extension, u32 available_extension_count, VkExtensionProperties *available_extensions) {
 	u32 i = 0;
 	struct sf_string required = {0};
+
 	sf_string_from_non_literal(required_extension, VK_MAX_EXTENSION_NAME_SIZE, &required);
 
 	for (i = 0; i < available_extension_count; ++i) {
@@ -132,7 +135,7 @@ struct sf_graphics_vulkan_extension_properties_array {
 
 sf_private void sf_graphics_vulkan_load_available_instance_extensions(struct sf_arena *arena, struct sf_graphics_vulkan_extension_properties_array *out) {
 	u32 count = 0;
-
+        
 	out->data = NULL;
 	out->size = 0;
 
@@ -833,6 +836,7 @@ sf_private VkFormat sf_graphics_vulkan_find_swapchain_depth_stencil_format(struc
 
 	return sf_graphics_vulkan_find_format(device->vk.physical_device, SF_SIZE(candidates), candidates, VK_IMAGE_TILING_OPTIMAL, VK_FORMAT_FEATURE_DEPTH_STENCIL_ATTACHMENT_BIT);
 }
+
 
 
 sf_private enum sf_graphics_format sf_graphics_get_format_from_vulkan_format(VkFormat format) {
@@ -1601,7 +1605,6 @@ sf_private void sf_graphics_vulkan_load_swapchain_image_array(VkDevice vk_device
 
 	out->size = count;
 }
-
 
 
 sf_private VkBufferUsageFlags sf_graphics_vulkan_get_buffer_usage_flags_from_buffer_usage_flags(sf_graphics_buffer_usage_flags flags) {
@@ -3525,6 +3528,7 @@ sf_private u64 sf_graphics_get_max_uniform_buffer_range(struct sf_graphics_conte
 	return context->device->vk.physical_device_properties.limits.maxUniformBufferRange;
 }
 
+// asdasd
 sf_private void sf_graphics_context_init_frames(struct sf_arena *arena, struct sf_graphics_context *context, u32 buffering_count) {
 	u32 i = 0;
 

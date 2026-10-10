@@ -50,3 +50,4 @@ sf_public void *sf_image_load_from_file(struct sf_arena *arena, struct sf_string
 sf_public void sf_image_free(void *image_data) {
 	stbi_image_free(image_data);
 }
+

@@ -34,9 +34,9 @@ target_compile_options(${PROJECT_NAME} PRIVATE
 	">"
 	"$<$<AND:$<COMPILE_LANG_AND_ID:C,Clang,AppleClang>,$<CONFIG:Debug>>:"
 	-g
-#		-fsanitize=address
-#		-fsanitize=undefined
-#		-fsanitize=bounds
+	-fsanitize=address
+	-fsanitize=undefined
+	-fsanitize=bounds
 	-Wuninitialized
 	">"
 	"$<$<AND:$<COMPILE_LANG_AND_ID:C,Clang,AppleClang>,$<CONFIG:Release>>:"
@@ -50,9 +50,9 @@ target_compile_options(${PROJECT_NAME} PRIVATE
 
 target_link_options(${PROJECT_NAME} PRIVATE
 	"$<$<AND:$<COMPILE_LANG_AND_ID:C,Clang,AppleClang>,$<CONFIG:Debug>>:"
-#		-fsanitize=address
-#		-fsanitize=undefined
-#		-fsanitize=bounds
+        -fsanitize=address
+        -fsanitize=undefined
+        -fsanitize=bounds
 	">"
 )
 
@@ -104,6 +104,7 @@ target_compile_options("${PROJECT_NAME}_main"	PRIVATE
 	-Wno-declaration-after-statement #cglm
 	-Wno-comment
 	-Wno-long-long
+        -Wno-unused
 	">"
 	"$<$<AND:$<COMPILE_LANG_AND_ID:C,Clang,AppleClang>,$<CONFIG:Debug>>:"
 	-g
