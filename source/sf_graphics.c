@@ -1969,14 +1969,6 @@ sf_public void sf_graphics_command_begin_render_pass(struct sf_graphics_device *
 
 	{
 		VkRenderPassBeginInfo info = {0};
-#if 0
-		clear_values[0].color.float32[0] = 0.0F;
-		clear_values[0].color.float32[1] = 0.0F;
-		clear_values[0].color.float32[2] = 0.0F;
-		clear_values[0].color.float32[3] = 1.0F;
-		clear_values[1].depthStencil.depth = 1.0F;
-		clear_values[1].depthStencil.stencil = 0;
-#endif
 
 		info.sType = VK_STRUCTURE_TYPE_RENDER_PASS_BEGIN_INFO;
 		info.pNext = NULL;
