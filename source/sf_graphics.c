@@ -203,7 +203,7 @@ static VkBool32 VKAPI_CALL sf_graphics_vulkan_log(VkDebugUtilsMessageSeverityFla
 			break;
 	}
 
-	return VK_TRUE;
+	return VK_FALSE;
 }
 
 struct sf_graphics_physical_device_array {
@@ -326,8 +326,7 @@ sf_private VkPhysicalDevice sf_graphics_vulkan_find_suitable_physical_device(str
 	candidate = last_candidate;
 
 finish:
-	if (candidate != last_candidate)
-		sf_graphics_vulkan_find_suitable_queue_family_indices(arena, candidate, vk_surface, out_families);
+	sf_graphics_vulkan_find_suitable_queue_family_indices(arena, candidate, vk_surface, out_families);
 
 	return candidate;
 }
@@ -1327,7 +1326,7 @@ sf_private VkImageViewType sf_graphics_vulkan_get_image_view_type_from_image_typ
 
 
 sf_private VkImageAspectFlags sf_graphics_vulkan_get_image_aspect_flags_from_format(enum sf_graphics_format format) {
-	VkImageAspectFlags result = VK_IMAGE_ASPECT_NONE;
+	VkImageAspectFlags result = 0;
 	switch (format) {
 		// 1 channel
 		case SF_GRAPHICS_FORMAT_R8_UNORM:
@@ -1391,8 +1390,6 @@ sf_public struct sf_graphics_image *sf_graphics_device_init_image(struct sf_aren
 	if (!image)
 		goto error;
 
-
-
 	image->info = *info;
 
 	if (image->info.mips == SF_GRAPHICS_CALCULATE_MIPS)
@@ -1413,7 +1410,7 @@ sf_public struct sf_graphics_image *sf_graphics_device_init_image(struct sf_aren
 		image_info.extent.depth = 1;
 		image_info.mipLevels = image->info.mips;
 		image_info.arrayLayers = 1;
-		image_info.samples = sf_graphics_vulkan_get_sample_count_from_sample_count(info->samples);
+		image_info.samples = sf_graphics_vulkan_get_sample_count_from_sample_count(info->sample_count);
 		image_info.tiling = VK_IMAGE_TILING_OPTIMAL;
 		image_info.usage = sf_graphics_vulkan_get_image_usage_from_image_usage(info->usage);
 		image_info.sharingMode = VK_SHARING_MODE_EXCLUSIVE;
@@ -1446,7 +1443,7 @@ sf_public struct sf_graphics_image *sf_graphics_device_init_image(struct sf_aren
 		image_view_info.components.a = VK_COMPONENT_SWIZZLE_A;
 		image_view_info.subresourceRange.aspectMask = sf_graphics_vulkan_get_image_aspect_flags_from_format(info->format); // FIXME(samuel): depth/stencil cases fail validation. Need to create a new image view for that
 		image_view_info.subresourceRange.baseMipLevel = 0;
-		image_view_info.subresourceRange.levelCount = info->mips;
+		image_view_info.subresourceRange.levelCount = image->info.mips;
 		image_view_info.subresourceRange.baseArrayLayer = 0;
 		image_view_info.subresourceRange.layerCount = 1;
 
@@ -1737,7 +1734,7 @@ sf_private struct sf_graphics_buffer *sf_graphics_device_init_buffer(struct sf_a
 
 			buffer_info.buffer = buffer->vk.buffer;
 			buffer_info.offset = 0;
-			buffer_info.range = VK_WHOLE_SIZE;
+			buffer_info.range = info->uniform_struct_size;
 
 			write.sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET;
 			write.pNext = NULL;
@@ -1769,6 +1766,7 @@ sf_public struct sf_graphics_buffer *sf_graphics_device_init_buffer_for_staging(
 		return NULL;
 
 	info.size = data_size_in_bytes;
+	info.uniform_struct_size = 0;
 	info.usage = 0;
 	info.usage |= SF_GRAPHICS_BUFFER_USAGE_TRANSFER_SOURCE;
 	info.usage |= SF_GRAPHICS_BUFFER_USAGE_TRANSFER_DESTINATION;
@@ -2178,6 +2176,7 @@ sf_private struct sf_graphics_buffer *sf_graphics_device_init_buffer_and_upload_
 		struct sf_graphics_init_buffer_info info = {0};
 
 		info.size = data_size_in_bytes;
+		info.uniform_struct_size = 0;
 		info.usage = usage;
 		info.usage |= SF_GRAPHICS_BUFFER_USAGE_TRANSFER_DESTINATION;
 		info.memory_properties = memory_properties;
@@ -2207,115 +2206,6 @@ cleanup:
 
 	return result_buffer;
 }
-
-#if 0 
-sf_private enum sf_graphics_format sf_graphics_get_format_from_vulkan_format(VkFormat format) {
-	enum sf_graphics_format result = SF_GRAPHICS_FORMAT_UNDEFINED;
-
-	switch (format) {
-		// 1 channel
-		case VK_FORMAT_R8_UNORM:
-			result = SF_GRAPHICS_FORMAT_R8_UNORM;
-			break;
-		case VK_FORMAT_R16_UNORM:
-			result = SF_GRAPHICS_FORMAT_R16_UNORM;
-			break;
-		case VK_FORMAT_R16_UINT:
-			result = SF_GRAPHICS_FORMAT_R16_UINT;
-			break;
-		case VK_FORMAT_R16_SFLOAT:
-			result = SF_GRAPHICS_FORMAT_R16_SFLOAT;
-			break;
-		case VK_FORMAT_R32_UINT:
-			result = SF_GRAPHICS_FORMAT_R32_UINT;
-			break;
-		case VK_FORMAT_R32_SFLOAT:
-			result = SF_GRAPHICS_FORMAT_R32_SFLOAT;
-			break;
-		// 2 channel
-		case VK_FORMAT_R8G8_UNORM:
-			result = SF_GRAPHICS_FORMAT_R8G8_UNORM;
-			break;
-		case VK_FORMAT_R16G16_UNORM:
-			result = SF_GRAPHICS_FORMAT_R16G16_UNORM;
-			break;
-		case VK_FORMAT_R16G16_SFLOAT:
-			result = SF_GRAPHICS_FORMAT_R16G16_SFLOAT;
-			break;
-		case VK_FORMAT_R32G32_UINT:
-			result = SF_GRAPHICS_FORMAT_R32G32_UINT;
-			break;
-		case VK_FORMAT_R32G32_SFLOAT:
-			result = SF_GRAPHICS_FORMAT_R32G32_SFLOAT;
-			break;
-		// 3 channel
-		case VK_FORMAT_R8G8B8_UNORM:
-			result = SF_GRAPHICS_FORMAT_R8G8B8_UNORM;
-			break;
-		case VK_FORMAT_R16G16B16_UNORM:
-			result = SF_GRAPHICS_FORMAT_R16G16B16_UNORM;
-			break;
-		case VK_FORMAT_R16G16B16_SFLOAT:
-			result = SF_GRAPHICS_FORMAT_R16G16B16_SFLOAT;
-			break;
-		case VK_FORMAT_R32G32B32_UINT:
-			result = SF_GRAPHICS_FORMAT_R32G32B32_UINT;
-			break;
-		case VK_FORMAT_R32G32B32_SFLOAT:
-			result = SF_GRAPHICS_FORMAT_R32G32B32_SFLOAT;
-			break;
-		// 4 channel
-		case VK_FORMAT_B8G8R8A8_UNORM:
-			result = SF_GRAPHICS_FORMAT_B8G8R8A8_UNORM;
-			break;
-		case VK_FORMAT_B8G8R8A8_SRGB:
-			result = SF_GRAPHICS_FORMAT_B8G8R8A8_SRGB;
-			break;
-		case VK_FORMAT_R8G8B8A8_UNORM:
-			result = SF_GRAPHICS_FORMAT_R8G8B8A8_UNORM;
-			break;
-		case VK_FORMAT_R16G16B16A16_UNORM:
-			result = SF_GRAPHICS_FORMAT_R16G16B16A16_UNORM;
-			break;
-		case VK_FORMAT_R16G16B16A16_SFLOAT:
-			result = SF_GRAPHICS_FORMAT_R16G16B16A16_SFLOAT;
-			break;
-		case VK_FORMAT_R32G32B32A32_UINT:
-			result = SF_GRAPHICS_FORMAT_R32G32B32A32_UINT;
-			break;
-		case VK_FORMAT_R32G32B32A32_SFLOAT:
-			result = SF_GRAPHICS_FORMAT_R32G32B32A32_SFLOAT;
-			break;
-		// Depth/stencil
-		case VK_FORMAT_D16_UNORM:
-			result = SF_GRAPHICS_FORMAT_D16_UNORM;
-			break;
-		case VK_FORMAT_X8_D24_UNORM_PACK32:
-			result = SF_GRAPHICS_FORMAT_X8_D24_UNORM_PACK32;
-			break;
-		case VK_FORMAT_D32_SFLOAT:
-			result = SF_GRAPHICS_FORMAT_D32_SFLOAT;
-			break;
-		case VK_FORMAT_S8_UINT:
-			result = SF_GRAPHICS_FORMAT_S8_UINT;
-			break;
-		case VK_FORMAT_D16_UNORM_S8_UINT:
-			result = SF_GRAPHICS_FORMAT_D16_UNORM_S8_UINT;
-			break;
-		case VK_FORMAT_D24_UNORM_S8_UINT:
-			result = SF_GRAPHICS_FORMAT_D24_UNORM_S8_UINT;
-			break;
-		case VK_FORMAT_D32_SFLOAT_S8_UINT:
-			result = SF_GRAPHICS_FORMAT_D32_SFLOAT_S8_UINT;
-			break;
-		default:
-			result = SF_GRAPHICS_FORMAT_UNDEFINED;
-			break;
-	}
-
-	return result;
-}
-#endif
 
 sf_private enum sf_graphics_sample_count sf_graphics_get_sample_count_from_vulkan_sample_count(VkSampleCountFlags samples) {
 	enum sf_graphics_sample_count result = SF_GRAPHICS_SAMPLE_COUNT_1;
@@ -2348,13 +2238,13 @@ sf_private void sf_graphics_vulkan_command_transition_image_layout(struct sf_gra
 
 	{
 		VkImageMemoryBarrier barrier = {0};
-		VkPipelineStageFlags source_stage = VK_PIPELINE_STAGE_NONE;
-		VkPipelineStageFlags destination_stage = VK_PIPELINE_STAGE_NONE;
+		VkPipelineStageFlags source_stage = 0;
+		VkPipelineStageFlags destination_stage = 0;
 
 		barrier.sType = VK_STRUCTURE_TYPE_IMAGE_MEMORY_BARRIER;
 		barrier.pNext = NULL;
-		barrier.srcAccessMask = VK_ACCESS_NONE;
-		barrier.dstAccessMask = VK_ACCESS_NONE;
+		barrier.srcAccessMask = 0;
+		barrier.dstAccessMask = 0;
 		barrier.oldLayout = old_layout;
 		barrier.newLayout = new_layout;
 		barrier.srcQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED;
@@ -2392,7 +2282,7 @@ sf_private sf_bool sf_graphics_check_mip_map_support(struct sf_graphics_device *
 
 	vkGetPhysicalDeviceFormatProperties(device->vk.physical_device, sf_graphics_vulkan_get_format_from_format(format), &properties);
 
-	return !(properties.optimalTilingFeatures & VK_FORMAT_FEATURE_SAMPLED_IMAGE_FILTER_LINEAR_BIT);
+	return !!(properties.optimalTilingFeatures & VK_FORMAT_FEATURE_SAMPLED_IMAGE_FILTER_LINEAR_BIT) && !!(properties.optimalTilingFeatures & VK_FORMAT_FEATURE_BLIT_SRC_BIT) && !!(properties.optimalTilingFeatures & VK_FORMAT_FEATURE_BLIT_DST_BIT);
 }
 
 sf_private void sf_graphics_command_generate_image_mip_maps(struct sf_graphics_command_buffer *command_buffer, struct sf_graphics_image *image) {
@@ -2516,11 +2406,10 @@ sf_public struct sf_graphics_image *sf_graphics_device_init_image_and_upload_dat
 
 	sf_graphics_vulkan_command_transition_image_layout(command_buffer, result_image, result_image->info.mips, VK_IMAGE_LAYOUT_UNDEFINED, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL);
 	sf_graphics_command_copy_buffer_to_image(command_buffer, 0, result_image->info.width, result_image->info.height, 1, 0, staging_buffer, result_image);
-	sf_graphics_vulkan_command_transition_image_layout(command_buffer, result_image, result_image->info.mips, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL, VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL);
-
-	if (sf_graphics_check_mip_map_support(device, result_image->info.format))
+	if (result_image->info.mips > 1 && sf_graphics_check_mip_map_support(device, result_image->info.format))
 		sf_graphics_command_generate_image_mip_maps(command_buffer, result_image);
-
+	else
+		sf_graphics_vulkan_command_transition_image_layout(command_buffer, result_image, result_image->info.mips, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL, VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL);
 
 	goto cleanup;
 
@@ -2555,7 +2444,7 @@ sf_public struct sf_graphics_image *sf_graphics_device_init_image_from_file(stru
 	info.type = SF_GRAPHICS_IMAGE_TYPE_2D;
 	info.usage = SF_GRAPHICS_IMAGE_USAGE_SAMPLED;
 	info.format = format;
-	info.samples = SF_GRAPHICS_SAMPLE_COUNT_1;
+	info.sample_count = SF_GRAPHICS_SAMPLE_COUNT_1;
 	info.memory_properties = SF_GRAPHICS_MEMORY_PROPERTY_DEVICE_LOCAL;
 	info.width = width;
 	info.height = height;
@@ -2569,19 +2458,19 @@ sf_public struct sf_graphics_image *sf_graphics_device_init_image_from_file(stru
 
 sf_private void sf_graphics_device_deinit_render_target(struct sf_graphics_device *device, struct sf_graphics_render_target *render_target) {
 	if (device && render_target) {
-		if (render_target->color_attachment && (render_target->color_attachment != render_target->info.color_attachment)) {
+		if (render_target->color_attachment && (render_target->color_attachment != render_target->info.output_image)) {
 			sf_graphics_device_deinit_image(device, render_target->color_attachment);
 			render_target->color_attachment = NULL;
 		}
 
-		if (render_target->resolve_attachment) {
+		if (render_target->resolve_attachment && (render_target->resolve_attachment != render_target->info.output_image)) {
 			sf_graphics_device_deinit_image(device, render_target->resolve_attachment);
 			render_target->resolve_attachment = NULL;
 		}
 
 		if (render_target->depth_stencil_attachment) {
 			sf_graphics_device_deinit_image(device, render_target->depth_stencil_attachment);
-			render_target->resolve_attachment = NULL;
+			render_target->depth_stencil_attachment = NULL;
 		}
 
 		if (render_target->vk.framebuffer) {
@@ -2618,10 +2507,6 @@ sf_private void sf_graphics_vulkan_load_render_target_attachment_array(struct sf
 	u32 attachment_count = 0;
 
 	SF_ARRAY_INIT(out->data, VK_NULL_HANDLE);
-
-	if (render_target->info.sample_count != SF_GRAPHICS_SAMPLE_COUNT_1 && render_target->resolve_attachment) {
-		out->data[attachment_count++] = render_target->resolve_attachment->vk.image_view;
-	}
 	
 	if (render_target->color_attachment) {
 		out->data[attachment_count++] = render_target->color_attachment->vk.image_view;
@@ -2631,14 +2516,18 @@ sf_private void sf_graphics_vulkan_load_render_target_attachment_array(struct sf
 		out->data[attachment_count++] = render_target->depth_stencil_attachment->vk.image_view;
 	}
 
+	if (render_target->info.sample_count != SF_GRAPHICS_SAMPLE_COUNT_1 && render_target->resolve_attachment) {
+		out->data[attachment_count++] = render_target->resolve_attachment->vk.image_view;
+	}
+
 	out->size = attachment_count;
 }
 
 struct sf_graphics_vulkan_render_target_attachment_reference_array {
-	u32 has_color_reference;
+	sf_bool has_color_reference;
 	VkAttachmentReference color_reference;
 
-	u32 has_resolve_reference;
+	sf_bool has_resolve_reference;
 	VkAttachmentReference resolve_reference;
 
 	sf_bool has_depth_stencil_reference;
@@ -2654,43 +2543,25 @@ sf_private void sf_graphics_vulkan_load_render_target_attachment_reference_array
 	if (!render_target || !out)
 		return;
 
-	out->has_resolve_reference = render_target->info.sample_count != SF_GRAPHICS_SAMPLE_COUNT_1 && !!render_target->resolve_attachment;
-	if (out->has_resolve_reference) {
-		VkAttachmentDescription *attachment = &out->descriptions[attachment_count];
-
-		attachment->flags = 0;
-		attachment->format = sf_graphics_vulkan_get_format_from_format(render_target->info.color_attachment_format);
-		attachment->samples = sf_graphics_vulkan_get_sample_count_from_sample_count(render_target->info.sample_count);
-		attachment->loadOp = VK_ATTACHMENT_LOAD_OP_CLEAR;
-		attachment->storeOp = VK_ATTACHMENT_STORE_OP_STORE;
-		attachment->stencilLoadOp = VK_ATTACHMENT_LOAD_OP_CLEAR;
-		attachment->stencilStoreOp = VK_ATTACHMENT_STORE_OP_STORE;
-		attachment->initialLayout = VK_IMAGE_LAYOUT_UNDEFINED;
-		attachment->finalLayout = render_target->info.will_be_presented ? VK_IMAGE_LAYOUT_PRESENT_SRC_KHR : VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL;
-
-		out->resolve_reference.attachment = attachment_count++;
-		out->resolve_reference.layout = VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL; // FIXME(samuel): is this layout right?
-	}
-
 	out->has_color_reference = !!render_target->color_attachment;
 	if (out->has_color_reference) {
 		VkAttachmentDescription *attachment = &out->descriptions[attachment_count];
 
 		attachment->flags = 0;
 		attachment->format = sf_graphics_vulkan_get_format_from_format(render_target->info.color_attachment_format);
-		attachment->samples = sf_graphics_vulkan_get_sample_count_from_sample_count(SF_GRAPHICS_SAMPLE_COUNT_1);
+		attachment->samples = sf_graphics_vulkan_get_sample_count_from_sample_count(render_target->info.sample_count);
 		attachment->loadOp = VK_ATTACHMENT_LOAD_OP_CLEAR;
-		attachment->storeOp = VK_ATTACHMENT_STORE_OP_STORE;
-		attachment->stencilLoadOp = VK_ATTACHMENT_LOAD_OP_CLEAR;
-		attachment->stencilStoreOp = VK_ATTACHMENT_STORE_OP_STORE;
+		attachment->storeOp = (render_target->info.sample_count != SF_GRAPHICS_SAMPLE_COUNT_1) ? VK_ATTACHMENT_STORE_OP_DONT_CARE : VK_ATTACHMENT_STORE_OP_STORE;
+		attachment->stencilLoadOp = VK_ATTACHMENT_LOAD_OP_DONT_CARE;
+		attachment->stencilStoreOp = VK_ATTACHMENT_STORE_OP_DONT_CARE;
 		attachment->initialLayout = VK_IMAGE_LAYOUT_UNDEFINED;
 		if (render_target->info.sample_count == SF_GRAPHICS_SAMPLE_COUNT_1)
-			attachment->finalLayout = render_target->info.will_be_presented ? VK_IMAGE_LAYOUT_PRESENT_SRC_KHR : VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL;
+			attachment->finalLayout = render_target->info.output_image_will_be_presented ? VK_IMAGE_LAYOUT_PRESENT_SRC_KHR : VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL;
 		else
 			attachment->finalLayout = VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL;
 
 		out->color_reference.attachment = attachment_count++;
-		out->color_reference.layout = VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL; // FIXME(samuel): is this layout right?
+		out->color_reference.layout = VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL; 
 	}
 
 	out->has_depth_stencil_reference = render_target->info.depth_stencil_attachment_format != SF_GRAPHICS_FORMAT_UNDEFINED && !!render_target->depth_stencil_attachment;
@@ -2702,13 +2573,31 @@ sf_private void sf_graphics_vulkan_load_render_target_attachment_reference_array
 		attachment->samples = sf_graphics_vulkan_get_sample_count_from_sample_count(render_target->info.sample_count);
 		attachment->loadOp = VK_ATTACHMENT_LOAD_OP_CLEAR;
 		attachment->storeOp = VK_ATTACHMENT_STORE_OP_STORE;
-		attachment->stencilLoadOp = VK_ATTACHMENT_LOAD_OP_CLEAR;
-		attachment->stencilStoreOp = VK_ATTACHMENT_STORE_OP_STORE;
+		attachment->stencilLoadOp = VK_ATTACHMENT_LOAD_OP_DONT_CARE;
+		attachment->stencilStoreOp = VK_ATTACHMENT_STORE_OP_DONT_CARE;
 		attachment->initialLayout = VK_IMAGE_LAYOUT_UNDEFINED;
 		attachment->finalLayout = VK_IMAGE_LAYOUT_DEPTH_STENCIL_ATTACHMENT_OPTIMAL;
 
 		out->depth_stencil_reference.attachment = attachment_count++;
 		out->depth_stencil_reference.layout = VK_IMAGE_LAYOUT_DEPTH_STENCIL_ATTACHMENT_OPTIMAL;
+	}
+
+	out->has_resolve_reference = render_target->info.sample_count != SF_GRAPHICS_SAMPLE_COUNT_1 && !!render_target->resolve_attachment;
+	if (out->has_resolve_reference) {
+		VkAttachmentDescription *attachment = &out->descriptions[attachment_count];
+
+		attachment->flags = 0;
+		attachment->format = sf_graphics_vulkan_get_format_from_format(render_target->info.color_attachment_format);
+		attachment->samples = VK_SAMPLE_COUNT_1_BIT;
+		attachment->loadOp = VK_ATTACHMENT_LOAD_OP_DONT_CARE;
+		attachment->storeOp = VK_ATTACHMENT_STORE_OP_STORE;
+		attachment->stencilLoadOp = VK_ATTACHMENT_LOAD_OP_DONT_CARE;
+		attachment->stencilStoreOp = VK_ATTACHMENT_STORE_OP_DONT_CARE;
+		attachment->initialLayout = VK_IMAGE_LAYOUT_UNDEFINED;
+		attachment->finalLayout = render_target->info.output_image_will_be_presented ? VK_IMAGE_LAYOUT_PRESENT_SRC_KHR : VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL;
+
+		out->resolve_reference.attachment = attachment_count++;
+		out->resolve_reference.layout = VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL; 
 	}
 
 	out->total_attachment_count = attachment_count;
@@ -2725,33 +2614,16 @@ sf_private struct sf_graphics_render_target *sf_graphics_device_init_render_targ
 		return NULL;
 
 	render_target->info = *info;
-	
-	if (info->color_attachment) {
-		render_target->color_attachment = info->color_attachment;
-	} else {
-		struct sf_graphics_init_image_info image_info = {0};
-		
-		image_info.type = SF_GRAPHICS_IMAGE_TYPE_2D;
-		image_info.usage = 0;
-		image_info.usage |= SF_GRAPHICS_IMAGE_USAGE_COLOR_ATTACHMENT;
-		image_info.usage |= SF_GRAPHICS_IMAGE_USAGE_TRANSFER_SOURCE;
-		image_info.usage |= SF_GRAPHICS_IMAGE_USAGE_TRANSFER_DESTINATION;
-		image_info.usage |= SF_GRAPHICS_IMAGE_USAGE_SAMPLED;
-		image_info.format = info->color_attachment_format;
-		image_info.samples = info->sample_count;
-		image_info.memory_properties = SF_GRAPHICS_MEMORY_PROPERTY_DEVICE_LOCAL;
-		image_info.width = info->width;
-		image_info.height = info->height;
-		image_info.mips = 1;
 
-		render_target->color_attachment = sf_graphics_device_init_image(arena, device, &image_info);
-		if (!render_target->color_attachment)
+	if (render_target->info.output_image) {
+		if (render_target->info.output_image->info.sample_count != SF_GRAPHICS_SAMPLE_COUNT_1)
 			goto error;
 
-		// FIXME(SamueL):  there needs to be a second view forced to have a 1 in the alpha channel??
-	}
+		if (render_target->info.output_image->info.format != render_target->info.color_attachment_format)
+			goto error;
 
-	if (info->sample_count != SF_GRAPHICS_SAMPLE_COUNT_1) {
+		render_target->resolve_attachment = render_target->info.output_image;
+	} else {
 		struct sf_graphics_init_image_info image_info = {0};
 
 		image_info.type = SF_GRAPHICS_IMAGE_TYPE_2D;
@@ -2761,7 +2633,7 @@ sf_private struct sf_graphics_render_target *sf_graphics_device_init_render_targ
 		image_info.usage |= SF_GRAPHICS_IMAGE_USAGE_TRANSFER_DESTINATION;
 		image_info.usage |= SF_GRAPHICS_IMAGE_USAGE_SAMPLED;
 		image_info.format = info->color_attachment_format;
-		image_info.samples = SF_GRAPHICS_SAMPLE_COUNT_1;
+		image_info.sample_count = SF_GRAPHICS_SAMPLE_COUNT_1;
 		image_info.memory_properties = SF_GRAPHICS_MEMORY_PROPERTY_DEVICE_LOCAL;
 		image_info.width = info->width;
 		image_info.height = info->height;
@@ -2772,6 +2644,29 @@ sf_private struct sf_graphics_render_target *sf_graphics_device_init_render_targ
 			goto error;
 	}
 
+	if (render_target->info.sample_count != SF_GRAPHICS_SAMPLE_COUNT_1) {
+		struct sf_graphics_init_image_info image_info = {0};
+		
+		image_info.type = SF_GRAPHICS_IMAGE_TYPE_2D;
+		image_info.usage = 0;
+		image_info.usage |= SF_GRAPHICS_IMAGE_USAGE_COLOR_ATTACHMENT;
+		image_info.format = info->color_attachment_format;
+		image_info.sample_count = info->sample_count;
+		image_info.memory_properties = SF_GRAPHICS_MEMORY_PROPERTY_DEVICE_LOCAL;
+		image_info.width = info->width;
+		image_info.height = info->height;
+		image_info.mips = 1;
+
+		render_target->color_attachment = sf_graphics_device_init_image(arena, device, &image_info);
+		if (!render_target->color_attachment)
+			goto error;
+	} else {
+		render_target->color_attachment = render_target->resolve_attachment;
+		render_target->resolve_attachment = NULL;
+	}
+
+	SF_ASSERT(render_target->resolve_attachment != render_target->color_attachment);
+
 	if (info->depth_stencil_attachment_format != SF_GRAPHICS_FORMAT_UNDEFINED) {
 		struct sf_graphics_init_image_info image_info = {0};
 
@@ -2780,7 +2675,7 @@ sf_private struct sf_graphics_render_target *sf_graphics_device_init_render_targ
 		image_info.usage |= SF_GRAPHICS_IMAGE_USAGE_DEPTH_STENCIL_ATTACHMENT;
 		image_info.usage |= SF_GRAPHICS_IMAGE_USAGE_SAMPLED;
 		image_info.format = info->depth_stencil_attachment_format;
-		image_info.samples = info->sample_count;
+		image_info.sample_count = info->sample_count;
 		image_info.memory_properties = SF_GRAPHICS_MEMORY_PROPERTY_DEVICE_LOCAL;
 		image_info.width = info->width;
 		image_info.height = info->height;
@@ -2819,12 +2714,12 @@ sf_private struct sf_graphics_render_target *sf_graphics_device_init_render_targ
 		subpass.preserveAttachmentCount = 0;
 		subpass.pPreserveAttachments = NULL;
 
-		subpass_dependency.srcSubpass = 0;
+		subpass_dependency.srcSubpass = VK_SUBPASS_EXTERNAL;
 		subpass_dependency.dstSubpass = 0;
-		subpass_dependency.srcStageMask = VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT;
-		subpass_dependency.dstStageMask = VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT;
-		subpass_dependency.srcAccessMask = VK_ACCESS_COLOR_ATTACHMENT_WRITE_BIT;
-		subpass_dependency.dstAccessMask = VK_ACCESS_COLOR_ATTACHMENT_WRITE_BIT;
+		subpass_dependency.srcStageMask = VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT | VK_PIPELINE_STAGE_EARLY_FRAGMENT_TESTS_BIT | VK_PIPELINE_STAGE_LATE_FRAGMENT_TESTS_BIT;
+		subpass_dependency.dstStageMask = VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT | VK_PIPELINE_STAGE_EARLY_FRAGMENT_TESTS_BIT;
+		subpass_dependency.srcAccessMask = VK_ACCESS_COLOR_ATTACHMENT_WRITE_BIT | VK_ACCESS_DEPTH_STENCIL_ATTACHMENT_WRITE_BIT;
+		subpass_dependency.dstAccessMask = VK_ACCESS_COLOR_ATTACHMENT_WRITE_BIT | VK_ACCESS_DEPTH_STENCIL_ATTACHMENT_WRITE_BIT;
 		subpass_dependency.dependencyFlags = VK_DEPENDENCY_BY_REGION_BIT;
 
 		render_pass_info.sType = VK_STRUCTURE_TYPE_RENDER_PASS_CREATE_INFO;
@@ -2934,7 +2829,6 @@ sf_private struct sf_graphics_swapchain *sf_graphics_device_init_swapchain(struc
 
 	swapchain->depth_stencil_format = sf_graphics_get_format_from_vulkan_format(vk_depth_stencil_format);
 
-
 	// FIXME(samuel): device and surface order...
 	sf_graphics_vulkan_find_supported_color_format(arena, device->vk.physical_device, device->vk.surface, &vk_surface_format);
 	if (vk_surface_format.format == VK_FORMAT_UNDEFINED)
@@ -2998,7 +2892,7 @@ sf_private struct sf_graphics_swapchain *sf_graphics_device_init_swapchain(struc
 		image_info.type = SF_GRAPHICS_IMAGE_TYPE_2D;
 		image_info.usage = SF_GRAPHICS_IMAGE_USAGE_COLOR_ATTACHMENT;
 		image_info.format = swapchain->color_format;
-		image_info.samples = SF_GRAPHICS_SAMPLE_COUNT_1;
+		image_info.sample_count = SF_GRAPHICS_SAMPLE_COUNT_1;
 		image_info.width = swapchain->width;
 		image_info.height = swapchain->height;
 		image_info.mips = 1;
@@ -3023,12 +2917,12 @@ sf_private struct sf_graphics_swapchain *sf_graphics_device_init_swapchain(struc
 		render_target_info.width = swapchain->width;
 		render_target_info.height = swapchain->height;
 		render_target_info.color_attachment_format = swapchain->color_format;
-		render_target_info.color_attachment = swapchain->images[i];
+		render_target_info.output_image = swapchain->images[i];
 		render_target_info.depth_stencil_attachment_format = swapchain->depth_stencil_format;
 		render_target_info.sample_count = init_info->sample_count; // FIXME(samuel): check if sample count is supported
 		render_target_info.color_clear_value = init_info->color_clear_value;
 		render_target_info.depth_stencil_clear_value = init_info->depth_stencil_clear_value;
-		render_target_info.will_be_presented = SF_TRUE;
+		render_target_info.output_image_will_be_presented = SF_TRUE;
 
 		swapchain->render_targets[i] = sf_graphics_device_init_render_target(arena, device, &render_target_info);
 		if (!swapchain->render_targets[i])
@@ -3037,6 +2931,7 @@ sf_private struct sf_graphics_swapchain *sf_graphics_device_init_swapchain(struc
 	}
 
 	return swapchain;
+
 error:
 	sf_graphics_device_deinit_swapchain(device, swapchain);
 	return NULL;
@@ -3310,7 +3205,7 @@ sf_private struct sf_graphics_pipeline *sf_graphics_device_init_pipeline(struct 
 	pipeline_info.basePipelineHandle = VK_NULL_HANDLE;
 	pipeline_info.basePipelineIndex = -1;
 
-	if (SF_VULKAN_CHECK(vkCreateGraphicsPipelines(device->vk.device, VK_NULL_HANDLE, 1, &pipeline_info, device->vk.allocation_callbacks, &pipeline->vk.pipeline))) {
+	if (!SF_VULKAN_CHECK(vkCreateGraphicsPipelines(device->vk.device, VK_NULL_HANDLE, 1, &pipeline_info, device->vk.allocation_callbacks, &pipeline->vk.pipeline))) {
 		pipeline->vk.pipeline = VK_NULL_HANDLE;
 		goto error;
 	}
@@ -3331,6 +3226,8 @@ sf_private void sf_graphics_dynamic_buffer_clear_garbage(struct sf_graphics_devi
 		sf_graphics_device_deinit_buffer(device, dynamic_buffer->garbage_buffers[i]);
 		dynamic_buffer->garbage_buffers[i] = NULL;
 	}
+
+	dynamic_buffer->garbage_buffer_count = 0;
 }
 
 sf_private sf_bool sf_graphics_dynamic_buffer_move_buffer_to_garbage(struct sf_graphics_dynamic_buffer *dynamic_buffer) {
@@ -3357,6 +3254,7 @@ sf_private sf_bool sf_graphics_dynamic_buffer_init_buffer_and_setup_arena(struct
 		return SF_FALSE;
 
 	info.size = size;
+	info.uniform_struct_size = sizeof(struct sf_graphics_default_uniform); // FIXME(samuel): hardcoded
 	info.usage = usage;
 	info.memory_properties = 0;
 	info.memory_properties |= SF_GRAPHICS_MEMORY_PROPERTY_CPU_VISIBLE;
@@ -3396,13 +3294,17 @@ error:
 }
 
 sf_private void sf_graphics_dynamic_buffer_allocate(struct sf_arena *arena, struct sf_graphics_device *device, struct sf_graphics_dynamic_buffer *dynamic_buffer, u64 size, struct sf_graphics_dynamic_buffer_allocation *allocation) {
+	u64 previous_offset = 0;
 	if (!device || !dynamic_buffer || !dynamic_buffer->buffer || !size || !allocation)
 		return;
 
 	allocation->buffer = NULL;
 	allocation->offset32 = 0;
 	allocation->offset64 = 0;
+
+	previous_offset = dynamic_buffer->mapped_buffer_arena.position;
 	allocation->memory = sf_arena_allocate(&dynamic_buffer->mapped_buffer_arena, size);
+
 	if (!allocation->memory) {
 		u64 new_buffer_size = 0;
 		u64 previous_buffer_size = 0;
@@ -3418,14 +3320,15 @@ sf_private void sf_graphics_dynamic_buffer_allocate(struct sf_arena *arena, stru
 		if (!sf_graphics_dynamic_buffer_init_buffer_and_setup_arena(arena, device, previous_buffer_usage_flags, new_buffer_size, dynamic_buffer))
 			return;
 
+		previous_offset = dynamic_buffer->mapped_buffer_arena.position;
 		allocation->memory = sf_arena_allocate(&dynamic_buffer->mapped_buffer_arena, size);
 		if (!allocation->memory)
 			return;
 	}
 
 	allocation->buffer = dynamic_buffer->buffer;
-	allocation->offset32 = (u32)dynamic_buffer->mapped_buffer_arena.position;
-	allocation->offset64 = dynamic_buffer->mapped_buffer_arena.position;
+	allocation->offset32 = (u32)previous_offset;
+	allocation->offset64 = previous_offset;
 } 
 
 
@@ -3533,7 +3436,7 @@ sf_private void sf_graphics_context_init_frames(struct sf_arena *arena, struct s
 
 
 	for (i = 0; i < buffering_count; ++i) {
-		context->frames[i] = sf_graphics_device_init_frame(arena, context->device, SF_KB(2), SF_MB(64), SF_MB(64));
+		context->frames[i] = sf_graphics_device_init_frame(arena, context->device, SF_KB(2), SF_MB(2), SF_MB(2));
 		if (!context->frames[i])
 			goto error;
 	}
@@ -3602,7 +3505,7 @@ sf_public struct sf_graphics_context *sf_graphics_init_context(struct sf_arena *
 
 	context->current_swapchain_arena_index = 0;
 
-	context->default_bound_image = sf_graphics_device_init_image_from_file(&context->arena, context->device, SF_STRING("reouces/test.jpg"));
+	context->default_bound_image = sf_graphics_device_init_image_from_file(&context->arena, context->device, SF_STRING("resources/test.jpg"));
 	if (!context->default_bound_image)
 		goto error;
 
@@ -3652,6 +3555,11 @@ sf_private struct sf_graphics_render_target *sf_graphics_acquire_next_swapchain_
 	}
 }
 
+sf_private void sf_graphics_dynamic_buffer_clear_all(struct sf_graphics_context *context, struct sf_graphics_dynamic_buffer *buffer) {
+	sf_arena_clear(&buffer->mapped_buffer_arena);
+	sf_graphics_dynamic_buffer_clear_garbage(context->device, buffer);
+}
+
 sf_private void sf_graphics_prepare_next_frame(struct sf_graphics_context *context) {
 	context->current_frame_index = (context->current_frame_index + 1) % context->info.buffering_count;
 }
@@ -3681,8 +3589,10 @@ sf_private sf_bool sf_graphics_try_to_rebuild_swapchain(struct sf_graphics_conte
 
 	new_arena_index = (context->current_swapchain_arena_index + 1) % SF_SIZE(context->swapchain_arenas);
 	new_swapchain = sf_graphics_device_init_swapchain(&context->swapchain_arenas[new_arena_index], context->device, context->swapchain, &context->info.swapchain_info);
-	if (!new_swapchain)
+	if (!new_swapchain) {
+		sf_arena_clear(&context->swapchain_arenas[new_arena_index]);
 		return SF_FALSE;
+	}
 
 	sf_graphics_device_deinit_swapchain(context->device, context->swapchain);
 	sf_arena_clear(&context->swapchain_arenas[context->current_swapchain_arena_index]);
@@ -3702,7 +3612,12 @@ sf_public void sf_graphics_begin_frame(struct sf_graphics_context *context) {
 		return;
 
 	frame = sf_graphics_get_current_frame(context);
+
 	sf_graphics_wait_for_fence(context->device, frame->in_flight_fence);
+
+	sf_graphics_dynamic_buffer_clear_all(context, frame->uniform_buffer);
+	sf_graphics_dynamic_buffer_clear_all(context, frame->index_buffer);
+	sf_graphics_dynamic_buffer_clear_all(context, frame->vertex_buffer);
 
 	render_target = sf_graphics_acquire_next_swapchain_render_target(context);
 	if (!render_target) {

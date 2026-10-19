@@ -184,8 +184,8 @@ sf_public struct sf_string sf_string_clone(struct sf_arena *arena, struct sf_str
 
 	SF_MEMORY_COPY(data, s.data, s.size);
 
-	s.size = s.size;
-	s.data = data;
+	result.size = s.size;
+	result.data = data;
 
         return result;
 }
@@ -205,8 +205,8 @@ sf_public struct sf_string sf_string_null_terminate(struct sf_arena *arena, stru
 	SF_MEMORY_COPY(data, s.data, s.size);
 	data[s.size] = '\0';
 
-	s.size = s.size;
-	s.data = data;
+	result.size = s.size;
+	result.data = data;
 
         return result;
 }

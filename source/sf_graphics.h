@@ -17,10 +17,9 @@
 #define SF_GRAPHICS_MAX_RESOURCE_POOL_COUNT 16
 #define SF_GRAPHICS_MAX_IMAGE_DESCRIPTOR_COUNT 8
 #define SF_GRAPHICS_CALCULATE_MIPS (u32)-1
-\
+
 typedef float vec2[3];
 typedef float vec3[3];
-
 
 enum sf_graphics_format {
 	SF_GRAPHICS_FORMAT_UNDEFINED,
@@ -213,7 +212,7 @@ struct sf_graphics_init_image_info {
 	enum sf_graphics_image_type type;
 	sf_graphics_image_usage_flags usage;
 	enum sf_graphics_format format;
-	enum sf_graphics_sample_count samples;
+	enum sf_graphics_sample_count sample_count;
 	sf_graphics_memory_property_flags memory_properties;
 	u32 width;
 	u32 height;
@@ -239,6 +238,7 @@ struct sf_graphics_image {
 
 struct sf_graphics_init_buffer_info {
 	u64 size;
+	u64 uniform_struct_size;
 	sf_graphics_buffer_usage_flags usage;
 	sf_graphics_memory_property_flags memory_properties;
 };
@@ -351,12 +351,15 @@ struct sf_graphics_init_render_target_info {
 	u32 width; 
 	u32 height; 
 	enum sf_graphics_format color_attachment_format; 
-	struct sf_graphics_image *color_attachment;
-	enum sf_graphics_format depth_stencil_attachment_format;
-	enum sf_graphics_sample_count sample_count;
 	struct sf_graphics_clear_value color_clear_value;
+
+	enum sf_graphics_sample_count sample_count;
+
+	enum sf_graphics_format depth_stencil_attachment_format;
 	struct sf_graphics_clear_value depth_stencil_clear_value;
-	sf_bool will_be_presented;
+
+	sf_bool output_image_will_be_presented;
+	struct sf_graphics_image *output_image;
 };
 
 struct sf_graphics_render_target {
@@ -461,6 +464,10 @@ struct sf_graphics_vertex {
 	vec3 position;
 	vec3 normal;
 	vec2 uv;
+};
+
+struct sf_graphics_default_uniform {
+	char data[64];
 };
 
 
