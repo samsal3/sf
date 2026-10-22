@@ -155,7 +155,7 @@ sf_public void sf_os_fill_graphics_init_context_info(struct sf_arena *arena, str
 	sf_local_persist char const *device_extensions[] = {
 	    VK_KHR_SWAPCHAIN_EXTENSION_NAME
 
-#ifdef __APPLE__
+#ifdef SF_ENV_OS_MACOS
 	    , "VK_KHR_portability_subset"
 #endif
 	};
@@ -186,7 +186,7 @@ sf_public void sf_os_fill_graphics_init_context_info(struct sf_arena *arena, str
 
 	base_instance_extensions = glfwGetRequiredInstanceExtensions(&base_instance_extension_count);
 
-#ifdef __APPLE__
+#if SF_ENV_OS_MACOS
 	required_instance_extension_count = base_instance_extension_count + 3;
 #else
 	required_instance_extension_count = base_instance_extension_count + 1;
@@ -200,7 +200,7 @@ sf_public void sf_os_fill_graphics_init_context_info(struct sf_arena *arena, str
 			info->device_info.vk.instance_extensions[i] = base_instance_extensions[i];
 
 		info->device_info.vk.instance_extensions[base_instance_extension_count + 0] = VK_EXT_DEBUG_UTILS_EXTENSION_NAME;
-#ifdef __APPLE__
+#if SF_ENV_OS_MACOS
 		info->device_info.vk.instance_extensions[base_instance_extension_count + 1] = "VK_KHR_portability_enumeration";
 		info->device_info.vk.instance_extensions[base_instance_extension_count + 2] = "VK_KHR_get_physical_device_properties2";
 #endif
