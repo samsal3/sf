@@ -4,6 +4,50 @@
 
 #include <stdio.h>
 
+sf_public struct sf_string sf_os_load_file_into_string(struct sf_arena *arena, struct sf_string path) {
+	FILE *file = NULL;
+	long file_size = 0;
+	char *data = NULL;
+	struct sf_string result = {0};
+	struct sf_string null_terminated_path = {0};
+
+	if (!arena || !path.data || !path.size)
+		return result;
+
+	null_terminated_path = sf_string_null_terminate(arena, path);
+	if (!null_terminated_path.data || !null_terminated_path.size)
+		return result;
+
+	file = fopen(null_terminated_path.data, "rb");
+	if (!file)
+		return result;
+
+	if (fseek(file, 0, SEEK_SET) != 0)
+		goto cleanup;
+
+	file_size = ftell(file);
+	if (file_size <= 0)
+		goto cleanup;
+
+	data = sf_arena_allocate(arena, (u64)file_size + 1);
+	if (!data)
+		goto cleanup;
+
+	if (fread(data, sizeof(*data), (size_t)file_size, file) != (size_t)file_size)
+		goto cleanup;
+
+	data[file_size] = '\0';
+
+	result.size = (u64)file_size;
+	result.data = data;
+
+cleanup:
+	if (file)
+		fclose(file);
+
+	return result;
+}
+
 
 sf_private void sf_os_glfw_framebuffer_resize_callback(GLFWwindow *glfw_window, i32 width, i32 height) {
 	struct sf_os_window *window = (struct sf_os_window *)glfwGetWindowUserPointer(glfw_window);

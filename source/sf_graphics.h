@@ -486,8 +486,10 @@ sf_public void sf_graphics_deinit_image(struct sf_graphics_context *context, str
 sf_public struct sf_graphics_buffer *sf_graphics_init_buffer(struct sf_graphics_context *context, struct sf_graphics_init_buffer_info const *info);
 sf_public void sf_graphics_deinit_buffer(struct sf_graphics_context *context, struct sf_graphics_buffer *buffer);
 
-sf_public void *sf_graphics_command_allocate_and_bind_immediate_vertex_memory(struct sf_graphics_context *context, u64 size);
-sf_public void *sf_graphics_command_allocate_and_bind_immediate_index_memory(struct sf_graphics_context *context, u64 size);
+sf_public void sf_graphics_command_bind_pipeline_to_current_frame(struct sf_graphics_context *context, struct sf_graphics_pipeline *pipeline);
+
+sf_public void *sf_graphics_command_allocate_and_bind_immediate_vertex_memory_to_current_frame(struct sf_graphics_context *context, u64 size);
+sf_public void *sf_graphics_command_allocate_and_bind_immediate_index_memory_to_current_frame(struct sf_graphics_context *context, u64 size);
 sf_public void *sf_graphics_command_allocate_and_bind_immediate_uniform_memory(struct sf_graphics_context *context, u64 size);
 
 sf_public void sf_graphics_command_bind_image_to_slot0(struct sf_graphics_context *context, struct sf_graphics_image *image);

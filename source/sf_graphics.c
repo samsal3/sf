@@ -284,7 +284,6 @@ sf_private void sf_graphics_vulkan_find_suitable_queue_family_indices(struct sf_
 
 sf_private VkPhysicalDevice sf_graphics_vulkan_find_suitable_physical_device(struct sf_arena *arena, VkInstance vk_instance, VkSurfaceKHR vk_surface, struct sf_graphics_init_device_info const *init_info, struct sf_graphics_vulkan_family_indices *out_families) {
 	u32 i = 0;
-	VkPhysicalDevice candidate = VK_NULL_HANDLE;
 	VkPhysicalDevice last_candidate = VK_NULL_HANDLE;
 	struct sf_graphics_physical_device_array physical_devices = {0};
 
@@ -315,20 +314,15 @@ sf_private VkPhysicalDevice sf_graphics_vulkan_find_suitable_physical_device(str
 			continue;
 
 		if (properties.deviceType == VK_PHYSICAL_DEVICE_TYPE_DISCRETE_GPU) {
-			candidate = device;
-			last_candidate = candidate;
-			goto finish;
+			sf_graphics_vulkan_find_suitable_queue_family_indices(arena, device, vk_surface, out_families);
+			return device;
 		} else {
 			last_candidate = device; // NOTE(samuel): Found a candidate, but keep looking for a discrete GPU.
 		}
 	}
 
-	candidate = last_candidate;
-
-finish:
-	sf_graphics_vulkan_find_suitable_queue_family_indices(arena, candidate, vk_surface, out_families);
-
-	return candidate;
+	sf_graphics_vulkan_find_suitable_queue_family_indices(arena, last_candidate, vk_surface, out_families);
+	return last_candidate;
 }
 
 sf_private void sf_graphics_deinit_device(struct sf_graphics_device *device) {
@@ -534,6 +528,9 @@ sf_private struct sf_graphics_device *sf_graphics_init_device(struct sf_arena *a
 
 	if (!SF_VULKAN_CHECK(vkGetPhysicalDeviceSurfaceCapabilitiesKHR(device->vk.physical_device, device->vk.surface, &device->vk.physical_device_surface_capabilities)))
 		goto error;
+
+	vkGetPhysicalDeviceProperties(device->vk.physical_device, &device->vk.physical_device_properties);
+
 
 	{
 		VkSamplerCreateInfo sampler_info = {0};
@@ -2019,7 +2016,7 @@ sf_public void sf_graphics_command_end_render_pass(struct sf_graphics_command_bu
 sf_public struct sf_graphics_command_buffer *sf_graphics_device_init_and_begin_single_use_command_buffer(struct sf_arena *arena, struct sf_graphics_device *device) {
 	struct sf_graphics_command_buffer *command_buffer = NULL;
 
-	if (!device)
+	if (!arena || !device)
 		return NULL;
 
 	command_buffer = sf_graphics_device_init_command_buffer(arena, device, SF_GRAPHICS_COMMAND_BUFFER_USAGE_ONE_TIME_SUBMIT);
@@ -2282,7 +2279,7 @@ sf_private sf_bool sf_graphics_check_mip_map_support(struct sf_graphics_device *
 
 	vkGetPhysicalDeviceFormatProperties(device->vk.physical_device, sf_graphics_vulkan_get_format_from_format(format), &properties);
 
-	return !!(properties.optimalTilingFeatures & VK_FORMAT_FEATURE_SAMPLED_IMAGE_FILTER_LINEAR_BIT) && !!(properties.optimalTilingFeatures & VK_FORMAT_FEATURE_BLIT_SRC_BIT) && !!(properties.optimalTilingFeatures & VK_FORMAT_FEATURE_BLIT_DST_BIT);
+	return !!(properties.optimalTilingFeatures & (VK_FORMAT_FEATURE_SAMPLED_IMAGE_FILTER_LINEAR_BIT | VK_FORMAT_FEATURE_BLIT_SRC_BIT | VK_FORMAT_FEATURE_BLIT_DST_BIT));
 }
 
 sf_private void sf_graphics_command_generate_image_mip_maps(struct sf_graphics_command_buffer *command_buffer, struct sf_graphics_image *image) {
@@ -2297,8 +2294,8 @@ sf_private void sf_graphics_command_generate_image_mip_maps(struct sf_graphics_c
 
 		barrier.sType = VK_STRUCTURE_TYPE_IMAGE_MEMORY_BARRIER;
 		barrier.pNext = NULL;
-		barrier.srcAccessMask = VK_ACCESS_NONE;
-		barrier.dstAccessMask = VK_ACCESS_NONE;
+		barrier.srcAccessMask = 0;
+		barrier.dstAccessMask = 0;
 		barrier.oldLayout = VK_IMAGE_LAYOUT_UNDEFINED;
 		barrier.newLayout = VK_IMAGE_LAYOUT_UNDEFINED;
 		barrier.srcQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED;
@@ -2492,10 +2489,6 @@ sf_private u64 sf_u64_align_up(u64 value, u64 alignment) {
 	return ((value + alignment - 1) / alignment) * alignment;
 }
 
-sf_private u32 sf_graphics_value_or_else(u32 value, u32 default_value) {
-	return value ? value : default_value;
-}
-
 #define SF_GRAPHICS_MAX_RENDER_TARGET_TOTAL_ATTACHMENT_COUNT 3
 
 struct sf_graphics_vulkan_render_target_attachment_array {
@@ -2661,8 +2654,7 @@ sf_private struct sf_graphics_render_target *sf_graphics_device_init_render_targ
 		if (!render_target->color_attachment)
 			goto error;
 	} else {
-		render_target->color_attachment = render_target->resolve_attachment;
-		render_target->resolve_attachment = NULL;
+		 SF_SWAP(struct sf_graphics_image *, render_target->color_attachment, render_target->resolve_attachment);
 	}
 
 	SF_ASSERT(render_target->resolve_attachment != render_target->color_attachment);
@@ -2834,7 +2826,6 @@ sf_private struct sf_graphics_swapchain *sf_graphics_device_init_swapchain(struc
 	if (vk_surface_format.format == VK_FORMAT_UNDEFINED)
 		goto error;
 
-
 	swapchain->vk.color_space = vk_surface_format.colorSpace;
 	swapchain->color_format = sf_graphics_get_format_from_vulkan_format(vk_surface_format.format);
 
@@ -2999,7 +2990,7 @@ struct sf_graphics_vulkan_vertex_layout_description {
 };
 
 sf_private void sf_graphics_vulkan_fill_vulkan_vertex_layout_description(struct sf_graphics_vertex_layout const *layout, struct sf_graphics_vulkan_vertex_layout_description *out_layout) {
-	SF_STATIC_ASSERT(SF_SIZE(layout->attributes) == SF_SIZE(out_layout->attribute_descriptions), layout_attribute_description_size_does_not_match);
+	SF_STATIC_ASSERT(SF_SIZE(layout->attributes) == SF_SIZE(out_layout->attribute_descriptions), "layout attribute sizes don't match");
 
 	u32 i = 0;
 
@@ -3434,7 +3425,6 @@ sf_private void sf_graphics_context_init_frames(struct sf_arena *arena, struct s
 	context->current_frame_index = 0;
 	SF_ARRAY_INIT(context->frames, NULL);
 
-
 	for (i = 0; i < buffering_count; ++i) {
 		context->frames[i] = sf_graphics_device_init_frame(arena, context->device, SF_KB(2), SF_MB(2), SF_MB(2));
 		if (!context->frames[i])
@@ -3485,8 +3475,6 @@ sf_public struct sf_graphics_context *sf_graphics_init_context(struct sf_arena *
 	if (!context->device)
 		goto error;
 
-	context->current_swapchain_arena_index = 0;
-
 	sf_arena_scratch(&context->arena, SF_KB(64), &context->swapchain_arenas[0]);
 	if (!context->swapchain_arenas[0].data)
 		goto error;
@@ -3508,7 +3496,6 @@ sf_public struct sf_graphics_context *sf_graphics_init_context(struct sf_arena *
 	context->default_bound_image = sf_graphics_device_init_image_from_file(&context->arena, context->device, SF_STRING("resources/test.jpg"));
 	if (!context->default_bound_image)
 		goto error;
-
 
 	return context;
 
@@ -3580,25 +3567,28 @@ sf_private void sf_graphics_reset_fence(struct sf_graphics_device *device, struc
 
 sf_private sf_bool sf_graphics_try_to_rebuild_swapchain(struct sf_graphics_context *context) {
 	u32 new_arena_index = 0;
-	struct sf_graphics_swapchain *new_swapchain = NULL;
+	struct sf_arena *arena = NULL;
 
 	if (!context || !context->device)
 		return SF_FALSE;
 
 	sf_graphics_device_wait_idle(context->device);
 
-	new_arena_index = (context->current_swapchain_arena_index + 1) % SF_SIZE(context->swapchain_arenas);
-	new_swapchain = sf_graphics_device_init_swapchain(&context->swapchain_arenas[new_arena_index], context->device, context->swapchain, &context->info.swapchain_info);
-	if (!new_swapchain) {
-		sf_arena_clear(&context->swapchain_arenas[new_arena_index]);
-		return SF_FALSE;
-	}
+	// FIXME(samuel): If init_swapchain fails on something that's not vkCreateSwapchainKHR, then the old swapchain resources are invalidated... so init swapchain needs to either:
+	//	1. Signal if vkCreateSwapchainKHR was successfull or
+	//	2. Be a two step process
+	// For now, we first deinit the old swapchain before creating the new one and just reuse the current arena
 
 	sf_graphics_device_deinit_swapchain(context->device, context->swapchain);
+	context->swapchain = NULL;
 	sf_arena_clear(&context->swapchain_arenas[context->current_swapchain_arena_index]);
 
-	context->swapchain = new_swapchain;
-	context->current_swapchain_arena_index = new_arena_index;
+	new_arena_index = context->current_swapchain_arena_index;
+	arena = &context->swapchain_arenas[new_arena_index];
+
+	context->swapchain = sf_graphics_device_init_swapchain(arena, context->device, NULL, &context->info.swapchain_info);
+	if (!context->swapchain)
+		return SF_FALSE;
 		
 	return SF_TRUE;
 }
@@ -3689,11 +3679,20 @@ sf_public void sf_graphics_end_frame(struct sf_graphics_context *context) {
 	sf_graphics_prepare_next_frame(context);
 }
 
+sf_public sf_bool sf_graphics_is_command_buffer_recording(struct sf_graphics_command_buffer *command_buffer) {
+	return command_buffer && command_buffer->vk.command_buffer && command_buffer->is_recording;
+}
+
 sf_public void sf_graphics_command_bind_pipeline(struct sf_graphics_command_buffer *command_buffer, struct sf_graphics_pipeline *pipeline) {
 	if (!command_buffer || !command_buffer->vk.command_buffer || !pipeline || !pipeline->vk.pipeline)
 		return;
 
 	vkCmdBindPipeline(command_buffer->vk.command_buffer, VK_PIPELINE_BIND_POINT_GRAPHICS, pipeline->vk.pipeline);
+}
+
+sf_public void sf_graphics_command_bind_pipeline_to_current_frame(struct sf_graphics_context *context, struct sf_graphics_pipeline *pipeline) {
+	struct sf_graphics_frame *frame = context->frames[context->current_frame_index];
+	sf_graphics_command_bind_pipeline(frame->command_buffer, pipeline);
 }
 
 sf_public void sf_graphics_command_bind_vertex_buffer(struct sf_graphics_command_buffer *command_buffer, struct sf_graphics_buffer *vertex_buffer, u64 offset) {
@@ -3710,7 +3709,7 @@ sf_public void sf_graphics_command_bind_index_buffer(struct sf_graphics_command_
 	vkCmdBindIndexBuffer(command_buffer->vk.command_buffer, index_buffer->vk.buffer, offset, VK_INDEX_TYPE_UINT32);
 }
 
-sf_public void *sf_graphics_command_allocate_and_bind_immediate_vertex_memory(struct sf_graphics_context *context, u64 size) {
+sf_public void *sf_graphics_command_allocate_and_bind_immediate_vertex_memory_to_current_frame(struct sf_graphics_context *context, u64 size) {
 	struct sf_graphics_dynamic_buffer_allocation allocation = {0};
 	struct sf_graphics_frame *frame = NULL;
 
@@ -3728,7 +3727,7 @@ sf_public void *sf_graphics_command_allocate_and_bind_immediate_vertex_memory(st
 }
 
 
-sf_public void *sf_graphics_command_allocate_and_bind_immediate_index_memory(struct sf_graphics_context *context, u64 size) {
+sf_public void *sf_graphics_command_allocate_and_bind_immediate_index_memory_to_current_frame(struct sf_graphics_context *context, u64 size) {
 	struct sf_graphics_dynamic_buffer_allocation allocation = {0};
 	struct sf_graphics_frame *frame = NULL;
 
@@ -3745,7 +3744,7 @@ sf_public void *sf_graphics_command_allocate_and_bind_immediate_index_memory(str
 	return allocation.memory;
 }
 
-sf_public void *sf_graphics_command_allocate_and_bind_immediate_uniform_memory(struct sf_graphics_context *context, u64 size) {
+sf_public void *sf_graphics_command_allocate_and_bind_immediate_uniform_memory_to_current_frame(struct sf_graphics_context *context, u64 size) {
 	struct sf_graphics_dynamic_buffer_allocation allocation = {0};
 	struct sf_graphics_frame *frame = NULL;
 
@@ -3792,7 +3791,6 @@ sf_public void sf_graphics_command_bind_image_to_slot1(struct sf_graphics_contex
 }
 
 
-
 sf_public void sf_graphics_command_draw_indexed(struct sf_graphics_context *context, u32 index_count, u32 instance_count, u32 first_index, i32 vertex_offset, u32 first_instance) {
 	struct sf_graphics_frame *frame = NULL;
 
@@ -3816,6 +3814,7 @@ sf_public void sf_graphics_deinit_pipeline(struct sf_graphics_context *context, 
 	if (!context || !pipeline)
 		return;
 
+	sf_graphics_device_wait_idle(context->device);
 	sf_graphics_device_deinit_pipeline(context->device, pipeline);
 }
 
@@ -3846,3 +3845,4 @@ sf_public void sf_graphics_deinit_buffer(struct sf_graphics_context *context, st
 
 	sf_graphics_device_deinit_buffer(context->device, buffer);
 }
+

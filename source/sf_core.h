@@ -16,7 +16,7 @@
 #define SF_GB(n) ((n) * 1024 * 1024 * 1024)
 #define SF_UNUSED(x) (void)(x)
 
-#define SF_STATIC_ASSERT(e, msg) typedef char sf_static_assert_##msg[(e) ? 1 : -1]
+#define SF_STATIC_ASSERT(e, msg) ((void)sizeof(char[(e) ? 1 : -1]))
 #define SF_ASSERT assert
 #define SF_STRING(str) sf_string_from_literal(str, SF_SIZE(str) - 1)
 
@@ -49,6 +49,13 @@
 	do {                                    \
 		(s)->size = sizeof(source) - 1; \
 		(s)->data = source;             \
+	} while (0)
+
+#define SF_SWAP(type, a, b)    \
+	do {                   \
+		type t_ = (a); \
+		(a) = (b);     \
+		(b) = t_;      \
 	} while (0)
 
 #define sf_public
