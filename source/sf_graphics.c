@@ -530,8 +530,6 @@ sf_private struct sf_graphics_device *sf_graphics_init_device(struct sf_arena *a
 	vkGetDeviceQueue(device->vk.device, device->vk.graphics_queue_family_index, 0, &device->vk.graphics_queue);
 	vkGetDeviceQueue(device->vk.device, device->vk.present_queue_family_index, 0, &device->vk.present_queue);
 
-	if (!SF_VULKAN_CHECK(vkGetPhysicalDeviceSurfaceCapabilitiesKHR(device->vk.physical_device, device->vk.surface, &device->vk.physical_device_surface_capabilities)))
-		goto error;
 
 	vkGetPhysicalDeviceProperties(device->vk.physical_device, &device->vk.physical_device_properties);
 
@@ -1057,14 +1055,39 @@ sf_private VkFormat sf_graphics_vulkan_get_format_from_format(enum sf_graphics_f
 	return result;
 }
 
+sf_private void sf_graphics_request_current_surface_dimensions(struct sf_graphics_device *device, u32 *width, u32 *height) {
+	if (!device || !device->info.request_surface_dimensions)
+		return;
+
+	if (width) *width = 0;
+	if (height) *height = 0;
+
+	device->info.request_surface_dimensions(device->info.plataform_data, width, height);
+}
+
+sf_private sf_bool sf_graphics_does_window_have_dimensions(struct sf_graphics_device *device) {
+	u32 width = 0;
+	u32 height = 0;
+
+	if (!device)
+		return SF_FALSE;
+
+	sf_graphics_request_current_surface_dimensions(device, &width, &height);
+
+	return width && height;
+}
+
 sf_private void sf_graphics_update_swapchain_dimensions(struct sf_graphics_device *device, struct sf_graphics_swapchain *swapchain) {
-	if (!device || !swapchain || !device->info.request_surface_dimensions)
+	if (!device || !swapchain || !device->info.request_surface_dimensions || !device->vk.physical_device || !device->vk.surface)
 		return;
 
 	swapchain->width = 0;
 	swapchain->height = 0;
 
-	device->info.request_surface_dimensions(device->info.plataform_data,  &swapchain->width, &swapchain->height);
+	if (!SF_VULKAN_CHECK(vkGetPhysicalDeviceSurfaceCapabilitiesKHR(device->vk.physical_device, device->vk.surface, &device->vk.physical_device_surface_capabilities)))
+		return
+
+	sf_graphics_request_current_surface_dimensions(device, &swapchain->width, &swapchain->height);
 
 	swapchain->width = SF_CLAMP(swapchain->width, device->vk.physical_device_surface_capabilities.minImageExtent.width, device->vk.physical_device_surface_capabilities.maxImageExtent.width);
 	swapchain->height = SF_CLAMP(swapchain->height, device->vk.physical_device_surface_capabilities.minImageExtent.height, device->vk.physical_device_surface_capabilities.maxImageExtent.height);
@@ -3593,6 +3616,7 @@ sf_private sf_bool sf_graphics_try_to_rebuild_swapchain(struct sf_graphics_conte
 
 	sf_graphics_device_deinit_swapchain(context->device, context->swapchain);
 	context->swapchain = NULL;
+
 	sf_arena_clear(&context->swapchain_arenas[context->current_swapchain_arena_index]);
 
 	new_arena_index = context->current_swapchain_arena_index;
@@ -3623,7 +3647,9 @@ sf_public void sf_graphics_begin_frame(struct sf_graphics_context *context) {
 
 	render_target = sf_graphics_acquire_next_swapchain_render_target(context);
 	if (!render_target) {
-		sf_graphics_try_to_rebuild_swapchain(context);
+		if (sf_graphics_does_window_have_dimensions(context->device)) {
+			sf_graphics_try_to_rebuild_swapchain(context);
+		}
 		context->skip_end_frame = SF_TRUE;
 		return;
 	}
@@ -3684,7 +3710,9 @@ sf_public void sf_graphics_end_frame(struct sf_graphics_context *context) {
 
 		result = vkQueuePresentKHR(context->device->vk.present_queue, &present_info);
 		if (result == VK_ERROR_OUT_OF_DATE_KHR || result == VK_SUBOPTIMAL_KHR) {
-			sf_graphics_try_to_rebuild_swapchain(context);
+			if (sf_graphics_does_window_have_dimensions(context->device)) {
+				sf_graphics_try_to_rebuild_swapchain(context);
+			}
 		}
 	}
 

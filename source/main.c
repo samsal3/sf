@@ -24,7 +24,6 @@ int main(void) {
 	if (!window)
 		goto error;
 
-
 	sf_os_fill_graphics_init_context_info(&arena, window, &info);
 
 	context = sf_graphics_init_context(&arena, &info);
