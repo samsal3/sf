@@ -176,6 +176,7 @@ struct sf_graphics_device {
 		VkPhysicalDevice physical_device;
 		VkPhysicalDeviceProperties physical_device_properties;
 		VkPhysicalDeviceFeatures physical_device_features;
+		VkSurfaceCapabilitiesKHR physical_device_surface_capabilities;
 		VkDevice device;
 
 		u32 graphics_queue_family_index;
@@ -186,7 +187,6 @@ struct sf_graphics_device {
 		VkQueue present_queue;
 		VkQueue compute_queue;
 
-		VkSurfaceCapabilitiesKHR physical_device_surface_capabilities;
 
 		VkDescriptorPool global_descriptor_pool;
 		VkDescriptorSetLayout image_descriptor_set_layout;
@@ -329,6 +329,8 @@ struct sf_graphics_swapchain {
 	enum sf_graphics_format color_format;
 	enum sf_graphics_format depth_stencil_format;
 
+	u32 clamped_requested_image_count;
+
 	u32 image_count;
 	struct sf_graphics_image *images[SF_GRAPHICS_MAX_SWAPCHAIN_IMAGE_COUNT];
 
@@ -448,6 +450,7 @@ struct sf_graphics_context {
 
 	u32 current_swapchain_arena_index;
 	struct sf_arena swapchain_arenas[2];
+
 	struct sf_graphics_swapchain *swapchain;
 
 	sf_bool skip_end_frame;

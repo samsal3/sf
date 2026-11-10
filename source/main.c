@@ -18,7 +18,7 @@ int main(void) {
 	if (!arena.data)
 		return 0;
 
-	source = SF_STRING("resources\\test.jpg");
+	source = SF_STRING("resources/test.jpg");
 
 	window = sf_os_init_window(&arena, 800, 600, SF_STRING("sf_graphics test"));
 	if (!window)

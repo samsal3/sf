@@ -16,7 +16,8 @@ PROPERTIES
 	CXX_EXTENSIONS OFF
 )
 
-target_compile_options(${PROJECT_NAME} PRIVATE
+target_compile_options(${PROJECT_NAME}
+PUBLIC
 	"$<$<COMPILE_LANG_AND_ID:C,Clang,AppleClang>:"
 	-Wall
 	-Wshadow
@@ -48,8 +49,9 @@ target_compile_options(${PROJECT_NAME} PRIVATE
 	">"
 )
 
-target_link_options(${PROJECT_NAME} PRIVATE
-	"$<$<AND:$<COMPILE_LANG_AND_ID:C,Clang,AppleClang>,$<CONFIG:Debug>>:"
+target_link_options(${PROJECT_NAME}
+PUBLIC
+	"$<$<AND:$<C_COMPILER_ID:C,Clang,AppleClang>,$<CONFIG:Debug>>:"
         -fsanitize=address
         -fsanitize=undefined
         -fsanitize=bounds
@@ -61,13 +63,14 @@ add_subdirectory(source)
 add_subdirectory(vendor)
 add_subdirectory(glsl)
 
-target_include_directories(${PROJECT_NAME} PUBLIC 
+target_include_directories(${PROJECT_NAME}
+PUBLIC 
 	${Vulkan_INCLUDE_DIRS}
 	source
 )
 
-target_link_libraries(${PROJECT_NAME} 
-	PUBLIC 
+target_link_libraries(${PROJECT_NAME}
+PUBLIC 
 	cglm_headers
 	glfw
 	imgui
@@ -77,7 +80,7 @@ target_link_libraries(${PROJECT_NAME}
 )
 
 target_compile_definitions("${PROJECT_NAME}" 
-	PRIVATE 
+PRIVATE 
 	"$<$<CONFIG:Debug>:SF_VULKAN_ENABLE_VALIDATOIN_LAYERS>"
 )
 
@@ -90,7 +93,8 @@ PROPERTIES
 	C_EXTENSIONS			OFF
 )
 
-target_compile_options("${PROJECT_NAME}_main"	PRIVATE
+target_compile_options("${PROJECT_NAME}_main"
+PUBLIC
 	"$<$<COMPILE_LANG_AND_ID:C,Clang,AppleClang>:"
 	-Wall
 	-Wshadow
@@ -108,6 +112,9 @@ target_compile_options("${PROJECT_NAME}_main"	PRIVATE
 	">"
 	"$<$<AND:$<COMPILE_LANG_AND_ID:C,Clang,AppleClang>,$<CONFIG:Debug>>:"
 	-g
+        -fsanitize=address
+        -fsanitize=undefined
+        -fsanitize=bounds
 	">"
 	"$<$<AND:$<COMPILE_LANG_AND_ID:C,Clang,AppleClang>,$<CONFIG:Release>>:"
 	-Ofast
@@ -118,7 +125,8 @@ target_compile_options("${PROJECT_NAME}_main"	PRIVATE
 )
 
 
-target_link_options("${PROJECT_NAME}_main" PRIVATE
+target_link_options("${PROJECT_NAME}_main" 
+PUBLIC
 	"$<$<COMPILE_LANG_AND_ID:C,Clang,AppleClang>:"
 	-Wall
 	-Wshadow
@@ -132,6 +140,9 @@ target_link_options("${PROJECT_NAME}_main" PRIVATE
 	-Wno-declaration-after-statement #cglm
 	">"
 	"$<$<AND:$<COMPILE_LANG_AND_ID:C,Clang,AppleClang>,$<CONFIG:Debug>>:"
+        -fsanitize=address
+        -fsanitize=undefined
+        -fsanitize=bounds
 	">"
 	"$<$<AND:$<COMPILE_LANG_AND_ID:C,Clang,AppleClang>,$<CONFIG:Release>>:"
 	-Ofast
@@ -143,4 +154,4 @@ target_link_options("${PROJECT_NAME}_main" PRIVATE
 
 file(COPY "resources" DESTINATION "${CMAKE_BINARY_DIR}")
 
-target_link_libraries("${PROJECT_NAME}_main" PRIVATE ${PROJECT_NAME})
+target_link_libraries("${PROJECT_NAME}_main" PUBLIC ${PROJECT_NAME})

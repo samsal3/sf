@@ -2,6 +2,8 @@
 
 #include "sf_graphics.h"
 
+#include "sf_environment.h"
+
 #include <stdio.h>
 
 sf_public struct sf_string sf_os_load_file_into_string(struct sf_arena *arena, struct sf_string path) {
@@ -155,7 +157,7 @@ sf_public void sf_os_fill_graphics_init_context_info(struct sf_arena *arena, str
 	sf_local_persist char const *device_extensions[] = {
 	    VK_KHR_SWAPCHAIN_EXTENSION_NAME
 
-#ifdef SF_ENV_OS_MACOS
+#if SF_ENV_OS_MACOS
 	    , "VK_KHR_portability_subset"
 #endif
 	};

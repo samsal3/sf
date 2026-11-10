@@ -1,6 +1,7 @@
 #include "sf_graphics.h"
 
 #include "sf_image.h"
+#include "sf_environment.h"
 
 #include <stdio.h>
 
@@ -420,7 +421,7 @@ sf_private struct sf_graphics_device *sf_graphics_init_device(struct sf_arena *a
 
 		instance_info.sType = VK_STRUCTURE_TYPE_INSTANCE_CREATE_INFO;
 		instance_info.pNext = NULL;
-#ifdef __APPLE__
+#if SF_ENV_OS_MACOS
 		instance_info.flags = VK_INSTANCE_CREATE_ENUMERATE_PORTABILITY_BIT_KHR;
 #else
 		instance_info.flags = 0;
@@ -483,6 +484,9 @@ sf_private struct sf_graphics_device *sf_graphics_init_device(struct sf_arena *a
 	}
 
 	vkGetPhysicalDeviceFeatures(device->vk.physical_device, &device->vk.physical_device_features);
+
+	if (!SF_VULKAN_CHECK(vkGetPhysicalDeviceSurfaceCapabilitiesKHR(device->vk.physical_device, device->vk.surface, &device->vk.physical_device_surface_capabilities)))
+		goto error;
 
 	{
 		float priority = 1.0F;
@@ -1054,14 +1058,11 @@ sf_private VkFormat sf_graphics_vulkan_get_format_from_format(enum sf_graphics_f
 }
 
 sf_private void sf_graphics_update_swapchain_dimensions(struct sf_graphics_device *device, struct sf_graphics_swapchain *swapchain) {
-	if (!device || !device->vk.physical_device || !device->vk.surface || !swapchain || !device->info.request_surface_dimensions)
+	if (!device || !swapchain || !device->info.request_surface_dimensions)
 		return;
 
 	swapchain->width = 0;
 	swapchain->height = 0;
-
-	if (!SF_VULKAN_CHECK(vkGetPhysicalDeviceSurfaceCapabilitiesKHR(device->vk.physical_device, device->vk.surface, &device->vk.physical_device_surface_capabilities)))
-		return;
 
 	device->info.request_surface_dimensions(device->info.plataform_data,  &swapchain->width, &swapchain->height);
 
@@ -1069,6 +1070,12 @@ sf_private void sf_graphics_update_swapchain_dimensions(struct sf_graphics_devic
 	swapchain->height = SF_CLAMP(swapchain->height, device->vk.physical_device_surface_capabilities.minImageExtent.height, device->vk.physical_device_surface_capabilities.maxImageExtent.height);
 }
 
+sf_private void sf_graphics_clamp_requested_image_count_to_surface_limits(struct sf_graphics_device *device, struct sf_graphics_swapchain *swapchain, struct sf_graphics_init_swapchain_info *info) {
+	if (!device || !swapchain || !info)
+		return;
+
+	swapchain->clamped_requested_image_count = SF_CLAMP(info->requested_image_count, device->vk.physical_device_surface_capabilities.minImageCount, device->vk.physical_device_surface_capabilities.maxImageCount);
+}
 
 sf_private u32 sf_graphics_vulkan_find_memory_type_index(VkPhysicalDevice device, VkMemoryPropertyFlags memory_properties, u32 filter) {
 	u32 i = 0;
@@ -1592,6 +1599,7 @@ sf_private void sf_graphics_vulkan_load_swapchain_image_array(VkDevice vk_device
 
 	if (!SF_VULKAN_CHECK(vkGetSwapchainImagesKHR(vk_device, vk_swapchain, &count, NULL)))
 		return;
+
 	if (count > SF_SIZE(out->data))
 		return;
 
@@ -2831,6 +2839,10 @@ sf_private struct sf_graphics_swapchain *sf_graphics_device_init_swapchain(struc
 
 	sf_graphics_update_swapchain_dimensions(device, swapchain);
 	if (!swapchain->width || !swapchain->height)
+		goto error;
+
+	sf_graphics_clamp_requested_image_count_to_surface_limits(device, swapchain, init_info);
+	if (!swapchain->clamped_requested_image_count)
 		goto error;
 
 	{
