@@ -3600,12 +3600,12 @@ sf_private void sf_graphics_reset_fence(struct sf_graphics_device *device, struc
 	SF_UNUSED(vkResetFences(device->vk.device, 1, &fence->vk.fence));
 }
 
-sf_private sf_bool sf_graphics_try_to_rebuild_swapchain(struct sf_graphics_context *context) {
+sf_private void sf_graphics_try_to_rebuild_swapchain(struct sf_graphics_context *context) {
 	u32 new_arena_index = 0;
 	struct sf_arena *arena = NULL;
 
 	if (!context || !context->device)
-		return SF_FALSE;
+		return;
 
 	sf_graphics_device_wait_idle(context->device);
 
@@ -3623,10 +3623,6 @@ sf_private sf_bool sf_graphics_try_to_rebuild_swapchain(struct sf_graphics_conte
 	arena = &context->swapchain_arenas[new_arena_index];
 
 	context->swapchain = sf_graphics_device_init_swapchain(arena, context->device, NULL, &context->info.swapchain_info);
-	if (!context->swapchain)
-		return SF_FALSE;
-		
-	return SF_TRUE;
 }
 
 sf_public void sf_graphics_begin_frame(struct sf_graphics_context *context) {
