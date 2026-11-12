@@ -468,6 +468,9 @@ sf_private struct sf_graphics_device *sf_graphics_init_device(struct sf_arena *a
 		}
 	}
 
+	if (!init_info->init_surface)
+		goto error;
+
 	init_info->init_surface(init_info->plataform_data, device);
 	if (!device->vk.surface)
 		goto error;
