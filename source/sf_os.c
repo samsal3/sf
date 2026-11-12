@@ -24,11 +24,14 @@ sf_public struct sf_string sf_os_load_file_into_string(struct sf_arena *arena, s
 	if (!file)
 		return result;
 
-	if (fseek(file, 0, SEEK_SET) != 0)
+	if (fseek(file, 0, SEEK_END) != 0)
 		goto cleanup;
 
 	file_size = ftell(file);
 	if (file_size <= 0)
+		goto cleanup;
+
+	if (fseek(file, 0, SEEK_SET) != 0)
 		goto cleanup;
 
 	data = sf_arena_allocate(arena, (u64)file_size + 1);

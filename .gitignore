@@ -6,3 +6,6 @@ build
 out
 .vs
 format.sh
+CLAUDE.md
+build-tests
+tests

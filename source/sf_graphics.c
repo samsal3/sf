@@ -1059,11 +1059,11 @@ sf_private VkFormat sf_graphics_vulkan_get_format_from_format(enum sf_graphics_f
 }
 
 sf_private void sf_graphics_request_current_surface_dimensions(struct sf_graphics_device *device, u32 *width, u32 *height) {
-	if (!device || !device->info.request_surface_dimensions)
-		return;
-
 	if (width) *width = 0;
 	if (height) *height = 0;
+
+	if (!device || !device->info.request_surface_dimensions)
+		return;
 
 	device->info.request_surface_dimensions(device->info.plataform_data, width, height);
 }
@@ -1081,26 +1081,35 @@ sf_private sf_bool sf_graphics_does_window_have_dimensions(struct sf_graphics_de
 }
 
 sf_private void sf_graphics_update_swapchain_dimensions(struct sf_graphics_device *device, struct sf_graphics_swapchain *swapchain) {
-	if (!device || !swapchain || !device->info.request_surface_dimensions || !device->vk.physical_device || !device->vk.surface)
+	if (!device || !swapchain)
 		return;
 
 	swapchain->width = 0;
 	swapchain->height = 0;
 
 	if (!SF_VULKAN_CHECK(vkGetPhysicalDeviceSurfaceCapabilitiesKHR(device->vk.physical_device, device->vk.surface, &device->vk.physical_device_surface_capabilities)))
-		return
+		return;
 
 	sf_graphics_request_current_surface_dimensions(device, &swapchain->width, &swapchain->height);
+	if (!swapchain->width || !swapchain->height)
+		return;
 
 	swapchain->width = SF_CLAMP(swapchain->width, device->vk.physical_device_surface_capabilities.minImageExtent.width, device->vk.physical_device_surface_capabilities.maxImageExtent.width);
 	swapchain->height = SF_CLAMP(swapchain->height, device->vk.physical_device_surface_capabilities.minImageExtent.height, device->vk.physical_device_surface_capabilities.maxImageExtent.height);
 }
 
 sf_private void sf_graphics_clamp_requested_image_count_to_surface_limits(struct sf_graphics_device *device, struct sf_graphics_swapchain *swapchain, struct sf_graphics_init_swapchain_info *info) {
+	u32 fixed_max_image_count = 0;
+
 	if (!device || !swapchain || !info)
 		return;
 
-	swapchain->clamped_requested_image_count = SF_CLAMP(info->requested_image_count, device->vk.physical_device_surface_capabilities.minImageCount, device->vk.physical_device_surface_capabilities.maxImageCount);
+	if (device->vk.physical_device_surface_capabilities.maxImageCount)
+		fixed_max_image_count = device->vk.physical_device_surface_capabilities.maxImageCount;
+	else
+		fixed_max_image_count = (u32)-1;
+
+	swapchain->clamped_requested_image_count = SF_CLAMP(info->requested_image_count, device->vk.physical_device_surface_capabilities.minImageCount, fixed_max_image_count);
 }
 
 sf_private u32 sf_graphics_vulkan_find_memory_type_index(VkPhysicalDevice device, VkMemoryPropertyFlags memory_properties, u32 filter) {
@@ -2882,7 +2891,7 @@ sf_private struct sf_graphics_swapchain *sf_graphics_device_init_swapchain(struc
 		info.pNext = NULL;
 		info.flags = 0;
 		info.surface = device->vk.surface;
-		info.minImageCount = init_info->requested_image_count;
+		info.minImageCount = swapchain->clamped_requested_image_count;
 		info.imageFormat = sf_graphics_vulkan_get_format_from_format(swapchain->color_format);
 		info.imageColorSpace = swapchain->vk.color_space;
 		info.imageExtent.width = swapchain->width;

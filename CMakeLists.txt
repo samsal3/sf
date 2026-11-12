@@ -62,6 +62,7 @@ PUBLIC
 add_subdirectory(source)
 add_subdirectory(vendor)
 add_subdirectory(glsl)
+add_subdirectory(tests)
 
 target_include_directories(${PROJECT_NAME}
 PUBLIC 

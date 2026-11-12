@@ -8,12 +8,12 @@
 #define SF_SIZE(a) (sizeof(a) / sizeof(0 [a]))
 #define SF_MIN(a, b) ((a) < (b) ? (a) : (b))
 #define SF_MAX(a, b) ((a) > (b) ? (a) : (b))
-#define SF_CLAMP(v, l, h) SF_MAX(SF_MIN(v, h), l);
+#define SF_CLAMP(v, l, h) SF_MAX(SF_MIN(v, h), l)
 #define SF_FALSE 0
 #define SF_TRUE 1
-#define SF_KB(n) ((n) * 1024)
-#define SF_MB(n) ((n) * 1024 * 1024)
-#define SF_GB(n) ((n) * 1024 * 1024 * 1024)
+#define SF_KB(n) ((u64)(n) * 1024)
+#define SF_MB(n) ((u64)(n) * 1024 * 1024)
+#define SF_GB(n) ((u64)(n) * 1024 * 1024 * 1024)
 #define SF_UNUSED(x) (void)(x)
 
 #define SF_STATIC_ASSERT(e, msg) ((void)sizeof(char[(e) ? 1 : -1]))
@@ -113,12 +113,16 @@ sf_public void *sf_arena_allocate(struct sf_arena *arena, u64 size) {
 	if (!arena || !size)
 		return NULL;
 
-	required_size = arena->position + size;
-	if (required_size > arena->capacity)
+	if (size > arena->capacity - arena->position)
 		return NULL;
 
+	required_size = arena->position + size;
+
 	memory = &arena->data[arena->position];
-	arena->position = sf_u64_align(required_size, arena->alignment);
+	if (arena->alignment)
+		arena->position = sf_u64_align(required_size, arena->alignment);
+	else
+		arena->position = required_size;
 
 	for (i = 0; i < size; ++i)
 		memory[i] = 0x0;
