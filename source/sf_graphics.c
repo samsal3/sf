@@ -2170,6 +2170,8 @@ sf_private u64 sf_graphics_get_stride_from_format(enum sf_graphics_format format
 			return 4;
 		case SF_GRAPHICS_FORMAT_R8G8B8A8_UNORM:
 			return 4;
+		case SF_GRAPHICS_FORMAT_R8G8B8A8_SRGB:
+			return 4;
 		case SF_GRAPHICS_FORMAT_R16G16B16A16_UNORM:
 			return 8;
 		case SF_GRAPHICS_FORMAT_R16G16B16A16_SFLOAT:
