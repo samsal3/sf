@@ -18,7 +18,7 @@
 #define SF_GRAPHICS_MAX_IMAGE_DESCRIPTOR_COUNT 8
 #define SF_GRAPHICS_CALCULATE_MIPS (u32)-1
 
-typedef float vec2[3];
+typedef float vec2[2];
 typedef float vec3[3];
 
 enum sf_graphics_format {
@@ -416,7 +416,7 @@ struct sf_graphics_vertex_layout {
 
 struct sf_graphics_init_pipeline_info {
 	struct sf_graphics_vertex_layout vertex_layout;
-	struct sf_graphics_render_target const *reference_render_target;
+	struct sf_graphics_render_target const *reference_render_target; // Set as NULL to use default render target
 	struct sf_graphics_shader const *vertex_shader;
 	struct sf_graphics_shader const *fragment_shader;
 };
