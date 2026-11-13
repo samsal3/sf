@@ -6,6 +6,35 @@
 
 #include <stdio.h>
 
+
+sf_public sf_bool sf_os_is_path_separator(char c) {
+#if SF_ENV_OS_WINDOWS
+	return c == '/' || c == '\\';
+#else
+	return c == '/';
+#endif
+}
+
+sf_private struct sf_string sf_os_path_to_local(struct sf_arena *arena, struct sf_string path) {
+#if SF_ENV_OS_WINDOWS
+	u32 i = 0;
+	struct sf_string result = sf_string_clone(arena, path);
+
+	if (!result.data || !result.size)
+		return result;
+
+	for (i = 0; i < result.size; ++i) {
+		result.data[i] = result.data[i] == '/' ? '\\' : result.data[i];
+	}
+	return result;
+#else
+	SF_UNUSED(arena);
+	return path;
+#endif
+
+}
+
+
 sf_public struct sf_string sf_os_load_file_into_string(struct sf_arena *arena, struct sf_string path) {
 	FILE *file = NULL;
 	long file_size = 0;
@@ -16,7 +45,7 @@ sf_public struct sf_string sf_os_load_file_into_string(struct sf_arena *arena, s
 	if (!arena || !path.data || !path.size)
 		return result;
 
-	null_terminated_path = sf_string_null_terminate(arena, path);
+	null_terminated_path = sf_string_null_terminate(arena, sf_os_path_to_local(arena, path));
 	if (!null_terminated_path.data || !null_terminated_path.size)
 		return result;
 

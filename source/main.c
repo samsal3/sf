@@ -15,6 +15,7 @@ int main(void) {
 	arena.alignment = 16;
 	arena.capacity = SF_MB(16);
 	arena.data = malloc(SF_MB(16));
+
 	if (!arena.data)
 		return 0;
 
