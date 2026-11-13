@@ -2,6 +2,7 @@
 
 #include "sf_image.h"
 #include "sf_environment.h"
+#include "sf_os.h"
 
 #include <stdio.h>
 
@@ -2981,7 +2982,7 @@ error:
 }
 
 
-sf_private void sf_graphics_device_deinit_shader(struct sf_graphics_device *device, struct sf_graphics_shader *shader) {
+sf_public void sf_graphics_device_deinit_shader(struct sf_graphics_device *device, struct sf_graphics_shader *shader) {
 	if (device && shader) {
 		if (device->vk.device) {
 			if (shader->vk.shader) {
@@ -2992,7 +2993,7 @@ sf_private void sf_graphics_device_deinit_shader(struct sf_graphics_device *devi
 	}
 }
 
-sf_private struct sf_graphics_shader *sf_graphics_device_init_shader(struct sf_arena *arena, struct sf_graphics_device *device, u64 spirv_code_size_in_bytes, void const *spirv_code) {
+sf_public struct sf_graphics_shader *sf_graphics_device_init_shader(struct sf_arena *arena, struct sf_graphics_device *device, u64 spirv_code_size_in_bytes, void const *spirv_code) {
 	struct sf_graphics_shader *shader = NULL;
 
 	if (!device || !device->vk.device || !spirv_code_size_in_bytes || !spirv_code)
@@ -3881,6 +3882,29 @@ sf_public void sf_graphics_deinit_pipeline(struct sf_graphics_context *context, 
 
 	sf_graphics_device_wait_idle(context->device);
 	sf_graphics_device_deinit_pipeline(context->device, pipeline);
+}
+
+sf_public struct sf_graphics_shader *sf_graphics_init_shader(struct sf_graphics_context *context, u64 spirv_code_size_in_bytes, void const *spirv_code) {
+	if (!context)
+		return NULL;
+
+	return sf_graphics_device_init_shader(&context->arena, context->device, spirv_code_size_in_bytes, spirv_code);
+}
+
+sf_public struct sf_graphics_shader *sf_graphics_init_shader_from_file(struct sf_arena *arena, struct sf_graphics_context *context, struct sf_string path) {
+	struct sf_string code = sf_os_load_file_into_string(arena, path);
+
+	if (!code.data || !code.size)
+		return NULL;
+
+	return sf_graphics_init_shader(context, code.size, code.data);
+}
+
+sf_public void sf_graphics_deinit_shader(struct sf_graphics_context *context, struct sf_graphics_shader *shader) {
+	if (!context)
+		return;
+
+	sf_graphics_device_deinit_shader(context->device, shader);
 }
 
 sf_public struct sf_graphics_image *sf_graphics_init_image(struct sf_graphics_context *context, struct sf_graphics_init_image_info const *info) {

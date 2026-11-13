@@ -473,6 +473,11 @@ struct sf_graphics_default_uniform {
 	char data[64];
 };
 
+struct sf_graphics_vertex_33 {
+	vec3 position;
+	vec3 color;
+};
+
 
 sf_public struct sf_graphics_context *sf_graphics_init_context(struct sf_arena *arena, struct sf_graphics_init_context_info *init_info);
 sf_public void sf_graphics_deinit_context(struct sf_graphics_context *context);
@@ -489,11 +494,16 @@ sf_public void sf_graphics_deinit_image(struct sf_graphics_context *context, str
 sf_public struct sf_graphics_buffer *sf_graphics_init_buffer(struct sf_graphics_context *context, struct sf_graphics_init_buffer_info const *info);
 sf_public void sf_graphics_deinit_buffer(struct sf_graphics_context *context, struct sf_graphics_buffer *buffer);
 
+
+sf_public struct sf_graphics_shader *sf_graphics_init_shader(struct sf_graphics_context *context, u64 spirv_code_size_in_bytes, void const *spirv_code);
+sf_public struct sf_graphics_shader *sf_graphics_init_shader_from_file(struct sf_arena *arena, struct sf_graphics_context *context, struct sf_string path);
+sf_public void sf_graphics_deinit_shader(struct sf_graphics_context *context, struct sf_graphics_shader *shader);
+
 sf_public void sf_graphics_command_bind_pipeline_to_current_frame(struct sf_graphics_context *context, struct sf_graphics_pipeline *pipeline);
 
 sf_public void *sf_graphics_command_allocate_and_bind_immediate_vertex_memory_to_current_frame(struct sf_graphics_context *context, u64 size);
 sf_public void *sf_graphics_command_allocate_and_bind_immediate_index_memory_to_current_frame(struct sf_graphics_context *context, u64 size);
-sf_public void *sf_graphics_command_allocate_and_bind_immediate_uniform_memory(struct sf_graphics_context *context, u64 size);
+sf_public void *sf_graphics_command_allocate_and_bind_immediate_uniform_memory_to_current_frame(struct sf_graphics_context *context, u64 size);
 
 sf_public void sf_graphics_command_bind_image_to_slot0(struct sf_graphics_context *context, struct sf_graphics_image *image);
 sf_public void sf_graphics_command_bind_image_to_slot1(struct sf_graphics_context *context, struct sf_graphics_image *image);
